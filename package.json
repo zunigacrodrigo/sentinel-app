@@ -1,0 +1,6 @@
+{
+  "name": "sentinel-risk-terminal",
+  "version": "4.1.0",
+  "private": true,
+  "type": "module"
+}

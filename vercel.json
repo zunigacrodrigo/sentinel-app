@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/get-risk.js", "use": "@vercel/node" },
+    { "src": "index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/get-risk.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "crons": [
+    {
+      "path": "/api/get-risk?type=run-backtest",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/get-risk?type=baselines-refresh",
+      "schedule": "0 6 1 */3 *"
+    }
+  ]
+}

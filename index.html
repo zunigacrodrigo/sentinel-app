@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel Risk Terminal v4</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #fafbfc;
+    --bg-card: #ffffff;
+    --border: #e5e7eb;
+    --border-strong: #d1d5db;
+    --text: #111827;
+    --text-dim: #6b7280;
+    --text-muted: #9ca3af;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --green: #16a34a;
+    --green-soft: #f0fdf4;
+    --amber: #d97706;
+    --amber-soft: #fffbeb;
+    --red: #dc2626;
+    --red-soft: #fef2f2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+    min-height: 100vh;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", Menlo, monospace; }
+  .container { max-width: 1080px; margin: 0 auto; }
+
+  /* ===== SEARCH ===== */
+  .search-block {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .search-input-wrap {
+    position: relative;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 6px 14px;
+    min-width: 220px;
+    background: var(--bg);
+  }
+  .search-input-wrap .pin { color: var(--text-muted); margin-right: 10px; font-size: 15px; }
+  .search-input-wrap input {
+    border: none; outline: none;
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700; font-size: 20px;
+    letter-spacing: 1px; width: 120px;
+    padding: 6px 0; background: transparent; color: var(--text);
+    text-transform: uppercase;
+  }
+
+  /* ===== AUTOCOMPLETE DROPDOWN ===== */
+  .autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0; right: 0;
+    background: var(--bg);
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+    z-index: 100;
+    overflow: hidden;
+    display: none;
+  }
+  .autocomplete-dropdown.open { display: block; }
+  .ac-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+  }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.selected { background: var(--accent-soft); }
+  .ac-ticker {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent);
+    min-width: 70px;
+  }
+  .ac-name {
+    font-size: 13px;
+    color: var(--text-dim);
+    flex: 1;
+    padding: 0 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ac-exchange {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .ac-loading {
+    padding: 12px 14px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .btn-analyze {
+    border: 1px solid var(--border-strong);
+    background: var(--bg);
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn-analyze:hover { background: var(--bg-soft); border-color: var(--text-dim); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .suggest-row {
+    color: var(--text-muted);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .suggest-row .try { color: var(--text-muted); }
+  .suggest-row a { color: var(--text); text-decoration: none; cursor: pointer; font-weight: 500; }
+  .suggest-row a:hover { color: var(--accent); }
+
+  /* ===== SETTINGS ===== */
+  .settings-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: none; border: none; color: var(--text-dim);
+    cursor: pointer; font-size: 12px; margin-left: auto;
+    font-family: inherit; padding: 4px 8px; border-radius: 6px;
+  }
+  .settings-toggle:hover { background: var(--bg-soft); }
+  .settings {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .settings.closed { display: none; }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .settings label {
+    display: block; font-size: 10px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;
+  }
+  .settings select {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px; font-family: inherit;
+    font-size: 13px; background: var(--bg);
+  }
+  .security-note {
+    margin-top: 10px; padding: 10px 12px;
+    background: var(--green-soft); border: 1px solid #bbf7d0;
+    border-radius: 6px; font-size: 12px; color: #14532d; line-height: 1.5;
+  }
+  @media (max-width: 800px) { .settings-grid { grid-template-columns: 1fr; } }
+
+  /* ===== STATUS ROW ===== */
+  .status-row {
+    display: flex; justify-content: flex-end;
+    gap: 28px; margin: 8px 0 18px; padding-right: 4px;
+  }
+  .status-item { text-align: right; }
+  .status-label { font-size: 10px; color: var(--text-muted); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2px; }
+  .status-value { font-family: "JetBrains Mono", monospace; font-size: 14px; font-weight: 600; }
+  .status-value.green { color: var(--green); }
+  .status-value.amber { color: var(--amber); }
+  .status-value.red { color: var(--red); }
+  .status-value .dot { display: inline-block; width: 7px; height: 7px; background: var(--green); border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* ===== TABS ===== */
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab {
+    padding: 8px 18px; background: var(--bg);
+    border: 1px solid var(--border-strong); border-radius: 8px;
+    color: var(--text); cursor: pointer; font-family: inherit;
+    font-size: 14px; font-weight: 500; transition: all 0.15s;
+  }
+  .tab:hover { background: var(--bg-soft); }
+  .tab.active { background: var(--text); color: white; border-color: var(--text); }
+
+  /* ===== COMPANY HEADER ===== */
+  .company-head {
+    display: flex; justify-content: space-between;
+    align-items: flex-end; padding: 8px 0 16px;
+    border-bottom: 1px solid var(--border); margin-bottom: 20px;
+  }
+  .company-ticker { font-family: "JetBrains Mono", monospace; font-size: 48px; font-weight: 800; line-height: 1; letter-spacing: -1px; color: #374151; }
+  .company-name { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+  .company-price { font-family: "JetBrains Mono", monospace; font-size: 36px; font-weight: 700; text-align: right; letter-spacing: -0.5px; }
+  .company-change { font-family: "JetBrains Mono", monospace; font-size: 13px; text-align: right; margin-top: 2px; }
+  .company-change.up { color: var(--green); }
+  .company-change.down { color: var(--red); }
+
+  /* ===== WARNING BANNER ===== */
+  .warn-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; background: var(--amber-soft);
+    border: 1px solid #fde68a; border-radius: 10px;
+    margin-bottom: 16px; font-size: 13px;
+  }
+  .warn-banner strong { color: var(--amber); margin-right: 4px; }
+
+  /* ===== MAIN GRID ===== */
+  .main-grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-weight: 600; }
+
+  /* ===== SCORE CARD ===== */
+  .score-big { font-family: "JetBrains Mono", monospace; font-size: 84px; font-weight: 800; line-height: 1; letter-spacing: -3px; margin: 4px 0; }
+  .score-big.low { color: var(--green); }
+  .score-big.mid { color: var(--amber); }
+  .score-big.high { color: var(--red); }
+  .score-verdict { font-size: 13px; margin-bottom: 20px; font-weight: 500; }
+  .score-verdict.low { color: var(--green); }
+  .score-verdict.mid { color: var(--amber); }
+  .score-verdict.high { color: var(--red); }
+  .score-verdict b { font-weight: 700; }
+
+  /* Score entrance animation */
+  .score-big.animating { animation: scoreIn 0.7s cubic-bezier(0.19,1,0.22,1) forwards; }
+  @keyframes scoreIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.93); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .bars { display: flex; flex-direction: column; gap: 4px; }
+  .bar-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+  .bar-row .bar-label { color: var(--text); }
+  .bar-row .bar-label .w { color: var(--text-muted); font-size: 11px; }
+  .bar-row .bar-val { font-family: "JetBrains Mono", monospace; font-size: 14px; font-weight: 600; }
+  .bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 3px 0 10px; }
+  .bar-fill { height: 100%; border-radius: 3px; width: 0%; transition: width 0.8s cubic-bezier(0.19,1,0.22,1); }
+  .bar-fill.low { background: var(--green); }
+  .bar-fill.mid { background: var(--amber); }
+  .bar-fill.high { background: var(--red); }
+
+  /* Regime pulse */
+  .regime-stress   { color: var(--red) !important; animation: regimePulse 2.5s ease-in-out infinite; }
+  .regime-euphoria { color: var(--green) !important; animation: regimePulse 2.5s ease-in-out infinite; }
+  .regime-neutral  { color: var(--amber) !important; }
+  @keyframes regimePulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.5; }
+  }
+
+  .regime-note { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border); font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--text-dim); }
+
+  /* ===== METRIC BADGES ===== */
+  .metric-badges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-badge { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .metric-badge .m-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; font-weight: 600; }
+  .metric-badge .m-val { font-family: "JetBrains Mono", monospace; font-size: 18px; font-weight: 700; }
+  @media (max-width: 600px) { .metric-badges { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ===== SECTOR TABLE ===== */
+  .chart-card { padding: 20px; }
+  .chart-title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 14px; }
+  .sector-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .sector-table th { text-align: left; color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; padding: 8px 6px; border-bottom: 1px solid var(--border); font-weight: 600; }
+  .sector-table td { padding: 10px 6px; border-bottom: 1px solid var(--border); font-family: "JetBrains Mono", monospace; }
+  .sector-table tr:last-child td { border-bottom: none; }
+  .sector-table .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; font-family: inherit; }
+  .tag.low { background: var(--green-soft); color: var(--green); }
+  .tag.mid { background: var(--amber-soft); color: var(--amber); }
+  .tag.high { background: var(--red-soft); color: var(--red); }
+
+  /* ===== AI CARD ===== */
+  .ai-card { border: 1px solid var(--accent); background: linear-gradient(180deg, var(--accent-soft) 0%, #ffffff 100%); }
+  .ai-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--text); display: flex; justify-content: space-between; align-items: center; }
+  .ai-text { font-size: 13.5px; line-height: 1.65; color: var(--text); }
+  .ai-text p { margin-bottom: 8px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  .list-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 12px; }
+  .list-col.cat h4 { color: var(--green); }
+  .list-col.risk h4 { color: var(--red); }
+  .list-col ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .list-col li { padding: 8px 12px; font-size: 13px; color: var(--text); border-left: 3px solid; background: var(--bg-soft); border-radius: 4px; }
+  .list-col.cat li { border-left-color: var(--green); }
+  .list-col.risk li { border-left-color: var(--red); }
+
+  /* ===== SENTIMENT + BACKTEST ===== */
+  .sent-back-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 700px) { .sent-back-grid { grid-template-columns: 1fr; } }
+  .sent-themes { margin-top: 12px; font-size: 12px; color: var(--text-dim); line-height: 1.8; }
+  .backtest-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .backtest-stat .bs-val { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 800; }
+  .backtest-stat .bs-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.3px; margin-top: 2px; }
+  .backtest-disclaimer { margin-top: 14px; padding: 8px 10px; background: var(--bg-soft); border-radius: 6px; font-size: 11px; color: var(--text-dim); line-height: 1.5; border-left: 2px solid var(--border-strong); }
+
+  /* ===== BOTTOM LINE ===== */
+  .bottom-line { border: 1.5px solid var(--accent); background: var(--accent-soft); padding: 24px; text-align: center; margin-top: 16px; border-radius: 12px; }
+  .bl-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; margin-bottom: 8px; }
+  .bl-verdict { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .bl-verdict.low { color: var(--green); }
+  .bl-verdict.mid { color: var(--amber); }
+  .bl-verdict.high { color: var(--red); }
+  .bl-desc { color: var(--text-dim); font-size: 13px; max-width: 560px; margin: 0 auto 16px; line-height: 1.5; }
+  .bl-strategies { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; max-width: 640px; margin: 0 auto; padding-top: 14px; border-top: 1px solid var(--border); }
+  .bl-strat h5 { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; font-weight: 600; }
+  .bl-strat p { font-size: 13px; font-weight: 700; color: var(--text); }
+
+  /* ===== AUDIT TRAIL ===== */
+  .audit-section { margin-top: 16px; padding: 14px 20px; background: var(--bg-soft); border-radius: 10px; border: 1px dashed var(--border); }
+  .audit-section h5 { font-size: 10px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1.5px; margin-bottom: 8px; font-weight: 700; }
+  .audit-links { display: flex; flex-wrap: wrap; gap: 6px; }
+  .audit-link { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--accent); text-decoration: none; font-weight: 500; transition: all 0.15s; }
+  .audit-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .audit-link::after { content: " ↗"; }
+
+  /* ===== PORTFOLIO ===== */
+  .pf-concentration-alert { display: flex; align-items: flex-start; gap: 10px; padding: 14px 18px; background: var(--amber-soft); border: 1px solid #fde68a; border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
+  .pf-concentration-alert.danger { background: var(--red-soft); border-color: #fecaca; }
+  .pf-concentration-alert.ok { background: var(--green-soft); border-color: #bbf7d0; }
+  .pf-concentration-alert strong { color: var(--amber); }
+  .pf-concentration-alert.danger strong { color: var(--red); }
+  .pf-concentration-alert.ok strong { color: var(--green); }
+  .pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .pf-grid { grid-template-columns: 1fr; } }
+  .pf-add-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .pf-add-row input { padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 8px; font-family: "JetBrains Mono", monospace; font-size: 14px; font-weight: 600; }
+  .pf-add-row input.ticker { width: 100px; letter-spacing: 1px; text-transform: uppercase; }
+  .pf-add-row input.weight { width: 90px; }
+  .btn-sm { padding: 8px 14px; background: var(--text); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .btn-sm:hover { background: #1f2937; }
+  .btn-sm.ghost { background: var(--bg); color: var(--text); border: 1px solid var(--border-strong); }
+  .holdings { display: flex; flex-direction: column; gap: 4px; }
+  .holding-row { display: grid; grid-template-columns: 80px 40px 1fr 50px 24px; gap: 14px; padding: 10px 0; align-items: center; font-size: 14px; border-bottom: 1px solid var(--border); }
+  .holding-row:last-child { border-bottom: none; }
+  .h-tk { font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--text-dim); }
+  .h-wt { font-family: "JetBrains Mono", monospace; color: var(--text); font-weight: 600; }
+  .h-score { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 15px; }
+  .h-score.low { color: var(--green); }
+  .h-score.mid { color: var(--amber); }
+  .h-score.high { color: var(--red); }
+  .h-sec { font-size: 12px; color: var(--text-dim); }
+  .h-del { cursor: pointer; color: var(--text-muted); text-align: center; }
+  .h-del:hover { color: var(--red); }
+  .composite-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .composite-block .cb-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .composite-block .cb-score { font-family: "JetBrains Mono", monospace; font-size: 48px; font-weight: 800; line-height: 1; }
+  .composite-block .cb-score.low { color: var(--green); }
+  .composite-block .cb-score.mid { color: var(--amber); }
+  .composite-block .cb-score.high { color: var(--red); }
+  .composite-block .cb-verdict { margin-top: 4px; font-size: 13px; font-weight: 600; }
+  .exposure-row { display: grid; grid-template-columns: 160px 1fr 50px; gap: 10px; align-items: center; margin-bottom: 8px; font-size: 13px; }
+  .exposure-row .e-name { color: var(--text); }
+  .exposure-row .e-bar { height: 10px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .exposure-row .e-fill { height: 100%; background: var(--accent); transition: width 0.5s; }
+  .exposure-row .e-fill.hi { background: var(--red); }
+  .exposure-row .e-val { font-family: "JetBrains Mono", monospace; text-align: right; font-weight: 600; }
+
+  /* ===== STRESS TEST ===== */
+  .stress-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stress-btn {
+    padding: 8px 16px; border-radius: 8px; border: 1.5px solid; font-family: inherit;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    background: transparent;
+  }
+  .stress-btn.black-swan { border-color: #7c3aed; color: #7c3aed; }
+  .stress-btn.black-swan:hover, .stress-btn.black-swan.active { background: #7c3aed; color: white; }
+  .stress-btn.recession { border-color: var(--amber); color: var(--amber); }
+  .stress-btn.recession:hover, .stress-btn.recession.active { background: var(--amber); color: white; }
+  .stress-btn.tech-crash { border-color: var(--red); color: var(--red); }
+  .stress-btn.tech-crash:hover, .stress-btn.tech-crash.active { background: var(--red); color: white; }
+  .stress-btn.reset { border-color: var(--border-strong); color: var(--text-dim); }
+  .stress-btn.reset:hover { background: var(--bg-soft); }
+  .stress-result {
+    padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg-soft); font-size: 13px;
+  }
+  .stress-result.active { border-color: #7c3aed; background: rgba(124, 58, 237, 0.05); }
+  .stress-delta {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 18px;
+  }
+
+  /* ===== SLEEP-AT-NIGHT INDEX ===== */
+  .san-dial {
+    position: relative; width: 120px; height: 120px; margin: 0 auto 8px;
+  }
+  .san-dial svg { width: 120px; height: 120px; }
+  .san-value {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: "JetBrains Mono", monospace; font-size: 28px; font-weight: 800;
+    line-height: 1;
+  }
+
+  /* ===== DEMO BANNER ===== */
+  .demo-banner {
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: linear-gradient(135deg, var(--accent-soft), var(--bg-soft));
+    border: 1px solid var(--accent); border-radius: 10px; margin-bottom: 16px;
+    font-size: 13px;
+  }
+  .footer { margin-top: 32px; padding: 16px 20px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+  .footer strong { color: var(--text); }
+
+  /* ===== STATES ===== */
+  .placeholder { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+  .error-box { padding: 16px 20px; background: var(--red-soft); border: 1px solid #fecaca; color: #7f1d1d; border-radius: 10px; font-size: 13px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- SEARCH ROW -->
+  <div class="search-block">
+    <div class="search-input-wrap" id="searchWrap">
+      <span class="pin">⚲</span>
+      <input id="tickerInput" type="text" value="" maxlength="8" placeholder="TSLA" autocomplete="off">
+      <div class="autocomplete-dropdown" id="acDropdown"></div>
+    </div>
+    <button id="analyzeBtn" class="btn-analyze">Analizar <span style="font-weight:400;">↗</span></button>
+    <div class="suggest-row">
+      <span class="try">Try:</span>
+      <a data-tk="NVDA">NVDA</a>
+      <a data-tk="AAPL">AAPL</a>
+      <a data-tk="TSLA">TSLA</a>
+      <a data-tk="BABA">BABA</a>
+      <a data-tk="AMZN">AMZN</a>
+    </div>
+    <button id="settingsToggle" class="settings-toggle">⚙ Configuración</button>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settingsPanel" class="settings closed">
+    <div class="settings-grid">
+      <div>
+        <label>Régimen de mercado</label>
+        <select id="regimeSelect">
+          <option value="auto" selected>Auto (según VIX real)</option>
+          <option value="neutral">Neutral (VIX 15–25)</option>
+          <option value="stress">Stress (VIX &gt; 25)</option>
+          <option value="euphoria">Euphoria (VIX &lt; 15)</option>
+        </select>
+      </div>
+      <div>
+        <label>Entorno</label>
+        <select id="envSelect">
+          <option value="proxy">Producción (proxy Vercel)</option>
+          <option value="local">Desarrollo local (keys directas)</option>
+        </select>
+      </div>
+    </div>
+    <div class="security-note">
+      ✅ <strong>Modo seguro:</strong> Las API Keys viven en las variables de entorno de Vercel. El browser nunca las ve.
+      Si estás en desarrollo local, selecciona "Desarrollo local" y agrega las keys directamente abajo.
+    </div>
+    <!-- Solo visible en modo local -->
+    <div id="localKeysPanel" class="hidden" style="margin-top:12px;">
+      <div class="settings-grid">
+        <div>
+          <label>Finnhub API Key (solo local)</label>
+          <input id="localFinnhub" type="password" placeholder="tu key de finnhub" style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:6px;font-family:inherit;font-size:13px;">
+        </div>
+        <div>
+          <label>Claude API Key (solo local)</label>
+          <input id="localClaude" type="password" placeholder="sk-ant-..." style="width:100%;padding:8px 10px;border:1px solid var(--border-strong);border-radius:6px;font-family:inherit;font-size:13px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS ROW -->
+  <div class="status-row">
+    <div class="status-item">
+      <div class="status-label">Confidence</div>
+      <div class="status-value green" id="confidenceVal">—</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Regime</div>
+      <div class="status-value" id="regimeVal">NEUTRAL</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Bono 10Y</div>
+      <div class="status-value" id="bondVal" title="Rendimiento del bono del Tesoro USA a 10 años">—</div>
+    </div>
+    <div class="status-item">
+      <div class="status-label">Data</div>
+      <div class="status-value green" id="dataVal"><span class="dot"></span>Idle</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" data-tab="report">Risk Report</button>
+    <button class="tab" data-tab="portfolio">Portfolio Risk</button>
+  </div>
+
+  <!-- TAB: RISK REPORT -->
+  <div id="tab-report">
+    <div id="reportState" class="placeholder">
+      Presiona <strong>Analizar</strong> para generar el reporte. Prueba con <strong>NVDA</strong>, <strong>KO</strong> y <strong>DUK</strong> para ver la normalización sectorial en acción.
+    </div>
+
+    <div id="reportContent" class="hidden">
+      <div class="company-head">
+        <div>
+          <div class="company-ticker" id="companyTicker">—</div>
+          <div class="company-name" id="companyName">—</div>
+        </div>
+        <div>
+          <div class="company-price" id="companyPrice">$—</div>
+          <div class="company-change" id="companyChange">—</div>
+        </div>
+      </div>
+
+      <div class="warn-banner hidden" id="warnBanner">
+        <strong>⚠ Geopolitical Warning:</strong>
+        <span id="warnText">—</span>
+      </div>
+
+      <div class="metric-badges">
+        <div class="metric-badge"><div class="m-label">Mkt Cap</div><div class="m-val" id="metricMcap">—</div></div>
+        <div class="metric-badge"><div class="m-label">P/E</div><div class="m-val" id="metricPE">—</div></div>
+        <div class="metric-badge"><div class="m-label">D/E</div><div class="m-val" id="metricDE">—</div></div>
+        <div class="metric-badge"><div class="m-label">Sector</div><div class="m-val" id="metricSector" style="font-size:12px;">—</div></div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-label">Aggregate Risk Score</div>
+          <div class="score-big" id="scoreBig">—</div>
+          <div class="score-verdict" id="scoreVerdict">—</div>
+          <!-- Risk Trend Badge -->
+          <div id="riskTrendBadge" style="display:none;margin-bottom:12px;"></div>
+          <div class="bars" id="barsList"></div>
+          <div class="regime-note" id="regimeNote">Regime: — — weights balanced</div>
+        </div>
+        <div class="card chart-card">
+          <div class="chart-title">Comparación vs Promedio del Sector</div>
+          <table class="sector-table">
+            <thead>
+              <tr>
+                <th>Métrica</th>
+                <th style="text-align:right;">Ticker</th>
+                <th style="text-align:right;">Sector</th>
+                <th style="text-align:right;">Δ</th>
+                <th style="text-align:right;">Veredicto</th>
+              </tr>
+            </thead>
+            <tbody id="sectorTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Divergence Signals Card -->
+      <div class="card" id="divergenceCard" style="display:none;margin-bottom:16px;padding:16px 20px;border-left:3px solid var(--amber);"></div>
+
+      <div class="card ai-card">
+        <div class="ai-title">
+          <span>🧠 Análisis Claude AI</span>
+          <span id="aiStatus" style="font-size:11px;color:var(--text-dim);font-weight:500;">—</span>
+        </div>
+        <div class="ai-text" id="aiText">
+          <p style="color:var(--text-dim);">El análisis narrativo se genera automáticamente si la Claude API Key está configurada en Vercel.</p>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="card list-col cat">
+          <h4>⇧ UPSIDE CATALYSTS</h4>
+          <ul id="catalystsList"><li style="color:var(--text-muted);border-left-color:var(--border-strong);background:transparent;">Se generan con el análisis AI</li></ul>
+        </div>
+        <div class="card list-col risk">
+          <h4>▲ RISK FACTORS</h4>
+          <ul id="risksList"><li style="color:var(--text-muted);border-left-color:var(--border-strong);background:transparent;">Se generan con el análisis AI</li></ul>
+        </div>
+      </div>
+
+      <div class="sent-back-grid">
+        <div class="card">
+          <div class="card-label">News Sentiment · Finnhub</div>
+          <div id="sentimentBlock">
+            <div style="color:var(--text-muted);font-size:13px;padding:20px 0;">Sentiment y noticias se cargan al analizar un ticker.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">Backtesting · Historial Real</div>
+          <div id="globalBacktestBlock" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);"></div>
+          <div id="historyBlock">
+            <div style="color:var(--text-muted);font-size:12px;padding:10px 0;">Cada análisis se guarda automáticamente. Después de 2+ análisis del mismo ticker verás la tendencia del score y auto-auditoría.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-line">
+        <div class="bl-label">Bottom Line</div>
+        <div class="bl-verdict" id="blVerdict">—</div>
+        <div class="bl-desc" id="blDesc">—</div>
+        <div class="bl-strategies">
+          <div class="bl-strat"><h5>Conservative</h5><p id="blConservative">—</p></div>
+          <div class="bl-strat"><h5>Aggressive</h5><p id="blAggressive">—</p></div>
+        </div>
+      </div>
+
+      <div class="audit-section">
+        <h5>Audit Trail · Fuentes oficiales</h5>
+        <div class="audit-links" id="auditLinks"></div>
+      </div>
+
+      <!-- STRESS TEST -->
+      <div class="card" id="stressCard" style="margin-top:16px;">
+        <div class="card-label">Simulador de Crisis · Stress Test</div>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">¿Cuánto resiste este ticker si el mercado colapsa? Selecciona un escenario para ver el score bajo condiciones extremas.</p>
+        <div class="stress-buttons">
+          <button class="stress-btn black-swan" data-scenario="black-swan">☠ Cisne Negro</button>
+          <button class="stress-btn recession" data-scenario="recession">📉 Recesión Inflacionaria</button>
+          <button class="stress-btn tech-crash" data-scenario="tech-crash">💥 Tech Crash</button>
+          <button class="stress-btn reset" data-scenario="reset">↺ Volver a normal</button>
+        </div>
+        <div id="stressResult" class="stress-result" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: PORTFOLIO -->
+  <div id="tab-portfolio" class="hidden">
+
+    <!-- DEMO BANNER (se oculta cuando hay holdings) -->
+    <div id="demoBanner" class="demo-banner">
+      <span style="font-size:18px;">💡</span>
+      <div>
+        <strong>¿Primera vez?</strong> Carga un portafolio de ejemplo para ver el análisis de concentración en acción.
+        <button id="loadDemoBtn" style="margin-left:10px;padding:4px 12px;background:var(--accent);color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">Ver demo Big Tech</button>
+      </div>
+    </div>
+
+    <div id="concentrationBanner" class="pf-concentration-alert">
+      <strong>ℹ Info:</strong>
+      <span>Agrega tickers para ver la alerta de concentración sectorial.</span>
+    </div>
+
+    <div class="pf-grid">
+      <div class="card">
+        <div class="card-label">Portfolio Holdings</div>
+        <div class="pf-add-row">
+          <input id="pfTicker" class="ticker" placeholder="TICKER" maxlength="8">
+          <input id="pfWeight" class="weight" type="number" placeholder="Peso %" min="1" max="100">
+          <button id="pfAdd" class="btn-sm">+ Agregar</button>
+          <button id="pfClear" class="btn-sm ghost">Limpiar</button>
+        </div>
+        <div class="holdings" id="holdingsList"><div class="placeholder" style="padding:20px 0;">Sin posiciones.</div></div>
+        <div class="composite-block hidden" id="compositeBlock">
+          <div class="cb-label">Composite Risk Score</div>
+          <div class="cb-score" id="cbScore">—</div>
+          <div class="cb-verdict" id="cbVerdict">—</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-label">Sleep-at-night Index</div>
+          <div id="sanBlock">
+            <div style="color:var(--text-muted);font-size:12px;padding:10px 0;">Agrega al menos 2 posiciones para calcular el índice de resiliencia del portafolio.</div>
+          </div>
+          <!-- SaN History Chart -->
+          <div id="sanHistoryBlock" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:none;">
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-weight:600;">Evolución del SaN</div>
+            <canvas id="sanChart" style="width:100%;height:80px;display:block;"></canvas>
+            <div id="sanTrendText" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <!-- Rebalance Calculator -->
+        <div class="card" id="rebalanceCard" style="margin-bottom:16px;display:none;">
+          <div class="card-label">Simulador de Rebalanceo</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Ajusta los pesos para ver cómo cambia tu SaN en tiempo real.</div>
+          <div id="rebalanceList"></div>
+          <div id="rebalanceResult" style="margin-top:12px;padding:10px 14px;background:var(--bg-soft);border-radius:8px;font-size:12px;display:none;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Exposure Breakdown (por sector)</div>
+          <div id="exposureList" style="margin-top:12px;"><div class="placeholder">—</div></div>
+          <div style="margin-top:16px;padding:12px 14px;background:var(--bg-soft);border-radius:8px;font-size:11px;color:var(--text-dim);line-height:1.6;border-left:2px solid var(--border-strong);">
+            <strong style="color:var(--text);">Metodología honesta:</strong> Medimos <strong>concentración sectorial + HHI</strong>. El 80% del riesgo real de un portafolio retail viene de aquí.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-line hidden" id="pfBottomLine">
+      <div class="bl-label">Portfolio Verdict</div>
+      <div class="bl-verdict" id="pfVerdictText">—</div>
+      <div class="bl-desc" id="pfVerdictDesc">—</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>Herramienta educativa de análisis de riesgo.</strong>
+    No constituye asesoría financiera según normativa CMF (Chile) ni equivalente internacional.
+    Los datos provienen de Finnhub y pueden contener retrasos u omisiones.
+    Sentinel Risk Terminal · v9.0 · Cache · Data Confidence · Programmed Sales · Build Apr 2026.
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   SENTINEL RISK TERMINAL v4.1
+   - Proxy seguro: todas las API calls van por /api/get-risk
+   - Autocomplete: Finnhub /search con debounce
+   - Motor: sector-normalized + regime-aware + portfolio HHI
+   ============================================================ */
+
+/* ── SECTOR BASELINES ── */
+/* ── SECTOR BASELINES ──
+   Valores hardcodeados como fallback. Al iniciar, se sobreescriben
+   con los valores de Supabase si están disponibles y más recientes.
+   Se actualizan trimestralmente via /api/get-risk?type=baselines-refresh
+*/
+let SECTOR_BASELINES = {
+  "Technology":             { pe: 32, de: 0.45, netMargin: 22, revGrowth: 12 },
+  "Communication Services": { pe: 22, de: 0.55, netMargin: 15, revGrowth: 8  },
+  "Financial Services":     { pe: 14, de: 2.50, netMargin: 20, revGrowth: 6  },
+  "Healthcare":             { pe: 24, de: 0.60, netMargin: 12, revGrowth: 7  },
+  "Consumer Cyclical":      { pe: 20, de: 1.10, netMargin: 8,  revGrowth: 6  },
+  "Consumer Defensive":     { pe: 21, de: 0.90, netMargin: 7,  revGrowth: 4  },
+  "Industrials":            { pe: 22, de: 0.85, netMargin: 9,  revGrowth: 5  },
+  "Energy":                 { pe: 13, de: 0.50, netMargin: 10, revGrowth: 3  },
+  "Utilities":              { pe: 18, de: 1.50, netMargin: 11, revGrowth: 3  },
+  "Basic Materials":        { pe: 16, de: 0.60, netMargin: 8,  revGrowth: 4  },
+  "Real Estate":            { pe: 30, de: 1.20, netMargin: 18, revGrowth: 5  },
+  "_DEFAULT_":              { pe: 22, de: 0.85, netMargin: 12, revGrowth: 7  },
+  "Conglomerate":           { pe: 20, de: 0.40, netMargin: 15, revGrowth: 5  }
+};
+let baselinesSource = "hardcoded"; // "hardcoded" | "supabase"
+let baselinesUpdatedAt = null;
+
+async function loadBaselinesFromSupabase() {
+  if (isLocalMode()) return;
+  try {
+    const result = await proxyGet("baselines-load");
+    if (result && result.baselines && Object.keys(result.baselines).length > 5) {
+      // Merge: update existing sectors, don't remove any
+      Object.entries(result.baselines).forEach(([sector, values]) => {
+        SECTOR_BASELINES[sector] = {
+          pe:        values.pe        ?? SECTOR_BASELINES[sector]?.pe,
+          de:        values.de        ?? SECTOR_BASELINES[sector]?.de,
+          netMargin: values.netMargin ?? SECTOR_BASELINES[sector]?.netMargin,
+          revGrowth: values.revGrowth ?? SECTOR_BASELINES[sector]?.revGrowth
+        };
+      });
+      baselinesSource = "supabase";
+      baselinesUpdatedAt = result.baselines["Technology"]?.updatedAt || null;
+      console.log("[Sentinel] Baselines cargados desde Supabase. Actualizado:", baselinesUpdatedAt);
+    }
+  } catch (e) {
+    console.warn("[Sentinel] Baselines fallback a hardcoded:", e.message);
+  }
+}
+const SECTOR_ALIASES = {
+  "Tech": "Technology", "Consumer Discretionary": "Consumer Cyclical",
+  "Consumer Staples": "Consumer Defensive", "Financials": "Financial Services",
+  "Industrial": "Industrials", "Materials": "Basic Materials",
+  "Telecom": "Communication Services", "Communication": "Communication Services"
+};
+/* Tickers cuyo sector Finnhub no refleja su operación real */
+const TICKER_OVERRIDES = {
+  "BRK.A": "Conglomerate", "BRK.B": "Conglomerate", "BRK-B": "Conglomerate",
+  "AMZN":  "Technology",    // AWS domina márgenes
+  "TSLA":  "Technology",    // perfil de márgenes más cercano a tech
+  "GOOG":  "Technology", "GOOGL": "Technology",
+  "META":  "Technology",
+  "JNJ":   "Healthcare"     // a veces clasificado como Consumer
+};
+function normalizeSector(sec, ticker) {
+  // Override por ticker primero
+  if (ticker && TICKER_OVERRIDES[ticker.toUpperCase()]) return TICKER_OVERRIDES[ticker.toUpperCase()];
+  if (!sec) return "_DEFAULT_";
+  if (SECTOR_BASELINES[sec]) return sec;
+  if (SECTOR_ALIASES[sec]) return SECTOR_ALIASES[sec];
+  const lower = sec.toLowerCase();
+  for (const k of Object.keys(SECTOR_BASELINES)) {
+    if (k.toLowerCase().includes(lower) || lower.includes(k.toLowerCase())) return k;
+  }
+  return "_DEFAULT_";
+}
+
+/* ── REGIME WEIGHTS v5 (4 factores) ── */
+const REGIME_WEIGHTS = {
+  neutral:  { valuation: 0.30, health: 0.30, growth: 0.25, volatility: 0.15 },
+  stress:   { valuation: 0.35, health: 0.35, growth: 0.10, volatility: 0.20 },
+  euphoria: { valuation: 0.15, health: 0.20, growth: 0.50, volatility: 0.15 }
+};
+
+/* ── RISK ENGINE v5 ──
+   Cambios vs v4:
+   - Deviaciones no-lineales: penalización crece al cuadrado para desvíos extremos
+   - Penalización por missing data (no devuelve 50 silencioso)
+   - Cuarto factor: volatility
+*/
+function normalizedRisk(value, baseline, metric) {
+  if (value == null || isNaN(value)) return { score: null, missing: true };
+  const inverted = (metric === "netMargin" || metric === "revGrowth");
+  const deviation = baseline > 0
+    ? (inverted ? (baseline - value) / baseline : (value - baseline) / baseline)
+    : 0;
+  // Non-linear: para desviaciones >50%, amplificar el castigo
+  let scaled;
+  const abs = Math.abs(deviation);
+  if (abs > 0.5) {
+    const sign = Math.sign(deviation);
+    scaled = sign * (0.5 + Math.pow(abs - 0.5, 1.4));
+  } else {
+    scaled = deviation;
+  }
+  return { score: Math.max(5, Math.min(95, 50 + scaled * 50)), missing: false };
+}
+
+/* Volatility risk: anualizada, comparada contra rangos típicos */
+function volatilityRisk(vol, sector) {
+  if (vol == null || isNaN(vol)) return { score: null, missing: true };
+  // Baselines volatilidad anualizada por tipo
+  let baseline = 30; // S&P avg
+  if (sector === "Utilities" || sector === "Consumer Defensive") baseline = 18;
+  else if (sector === "Technology" || sector === "Communication Services") baseline = 35;
+  else if (sector === "Energy" || sector === "Basic Materials") baseline = 40;
+  const dev = (vol - baseline) / baseline;
+  const scaled = Math.abs(dev) > 0.5 ? Math.sign(dev) * (0.5 + Math.pow(Math.abs(dev) - 0.5, 1.3)) : dev;
+  return { score: Math.max(5, Math.min(95, 50 + scaled * 50)), missing: false };
+}
+
+function calcRiskEngine(metrics, sectorKey, regime, extras = {}) {
+  const baseline = SECTOR_BASELINES[sectorKey] || SECTOR_BASELINES["_DEFAULT_"];
+  const w = REGIME_WEIGHTS[regime] || REGIME_WEIGHTS.neutral;
+
+  const val = normalizedRisk(metrics.pe, baseline.pe, "pe");
+  const hea = normalizedRisk(metrics.de, baseline.de, "de");
+  const mar = normalizedRisk(metrics.netMargin, baseline.netMargin, "netMargin");
+  const gro = normalizedRisk(metrics.revGrowth, baseline.revGrowth, "revGrowth");
+  const vol = volatilityRisk(extras.volatility, sectorKey);
+
+  // Missing data tracking
+  const missingCount = [val, hea, mar, gro, vol].filter(x => x.missing).length;
+
+  // Fallback: si falta un factor, usar 55 (ligeramente conservador en vez de neutral 50)
+  const fill = x => x.missing ? 55 : x.score;
+  const valuation = fill(val);
+  const health = fill(hea);
+  const growth = (fill(mar) + fill(gro)) / 2;
+  const volatility = fill(vol);
+
+  const final = valuation * w.valuation
+              + health * w.health
+              + growth * w.growth
+              + volatility * w.volatility;
+
+  return {
+    score: Math.round(final * 10) / 10,
+    breakdown: {
+      valuation: Math.round(valuation),
+      health: Math.round(health),
+      growth: Math.round(growth),
+      volatility: Math.round(volatility),
+      margin: Math.round(fill(mar)),
+      revGrowth: Math.round(fill(gro))
+    },
+    missing: {
+      valuation: val.missing, health: hea.missing, margin: mar.missing,
+      revGrowth: gro.missing, volatility: vol.missing, count: missingCount
+    },
+    weights: w, baseline, sectorKey
+  };
+}
+
+function computeConfidence(metrics, extras = {}) {
+  const fields = ['pe', 'de', 'netMargin', 'revGrowth'];
+  const present = fields.filter(f => metrics[f] != null && !isNaN(metrics[f])).length;
+  const volBonus = (extras.volatility != null) ? 1 : 0;
+  const momBonus = (extras.momentum != null) ? 0.5 : 0;
+  return Math.round(((present + volBonus + momBonus) / 5.5) * 100 * 10) / 10;
+}
+
+/* ── PROXY API CALLS ── */
+// Detecta si estamos en Vercel (producción) o local
+function isLocalMode() {
+  return document.getElementById("envSelect").value === "local";
+}
+
+async function proxyGet(type, params = {}) {
+  const qs = new URLSearchParams({ type, ...params }).toString();
+  const r = await fetch(`/api/get-risk?${qs}`);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+    throw new Error(err.error || `Error ${r.status}`);
+  }
+  return r.json();
+}
+
+async function proxyPost(type, body = {}) {
+  const r = await fetch(`/api/get-risk?type=${type}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: `HTTP ${r.status}` }));
+    throw new Error(err.error || `Error ${r.status}`);
+  }
+  return r.json();
+}
+
+/* ── FETCHDATA: siempre Finnhub via proxy ── */
+async function fetchData(ticker) {
+  ticker = ticker.toUpperCase().trim();
+
+  // En modo local, llamar directo a Finnhub con la key del campo
+  if (isLocalMode()) {
+    const key = document.getElementById("localFinnhub").value.trim();
+    if (!key) throw new Error("Modo local: agrega tu Finnhub API Key en Configuración.");
+    return await fetchFinnhubDirect(ticker, key);
+  }
+
+  // Modo proxy (producción)
+  const [q, p, m] = await Promise.all([
+    proxyGet("quote",   { ticker }),
+    proxyGet("profile", { ticker }),
+    proxyGet("metrics", { ticker })
+  ]);
+
+  if (!p.ticker) throw new Error(`"${ticker}" no encontrado en Finnhub.`);
+  const md = m.metric || {};
+
+  return {
+    provider: "Finnhub",
+    symbol: p.ticker,
+    name: p.name,
+    sector: p.finnhubIndustry,
+    price: q.c,
+    changesPct: q.dp,
+    mcap: p.marketCapitalization ? p.marketCapitalization * 1e6 : null,
+    metrics: {
+      pe: md.peBasicExclExtraTTM ?? md.peTTM ?? null,
+      de: md["totalDebt/totalEquityQuarterly"] ?? md["totalDebt/totalEquityAnnual"] ?? null,
+      netMargin: md.netProfitMarginTTM ?? null,
+      revGrowth: md.revenueGrowthTTMYoy ?? null,
+      beta: md.beta
+    }
+  };
+}
+
+async function fetchFinnhubDirect(ticker, key) {
+  const base = "https://finnhub.io/api/v1";
+  const [q, p, m] = await Promise.all([
+    fetch(`${base}/quote?symbol=${ticker}&token=${key}`),
+    fetch(`${base}/stock/profile2?symbol=${ticker}&token=${key}`),
+    fetch(`${base}/stock/metric?symbol=${ticker}&metric=all&token=${key}`)
+  ]);
+  if (q.status === 401 || q.status === 403) throw new Error("Finnhub: API key inválida.");
+  if (!q.ok) throw new Error(`Finnhub error ${q.status}`);
+  const quote = await q.json();
+  const profile = await p.json();
+  const metData = await m.json();
+  const md = metData.metric || {};
+  if (!profile.ticker) throw new Error(`"${ticker}" no encontrado en Finnhub.`);
+  return {
+    provider: "Finnhub (local)",
+    symbol: profile.ticker, name: profile.name,
+    sector: profile.finnhubIndustry, price: quote.c,
+    changesPct: quote.dp,
+    mcap: profile.marketCapitalization ? profile.marketCapitalization * 1e6 : null,
+    metrics: {
+      pe: md.peBasicExclExtraTTM ?? md.peTTM ?? null,
+      de: md["totalDebt/totalEquityQuarterly"] ?? md["totalDebt/totalEquityAnnual"] ?? null,
+      netMargin: md.netProfitMarginTTM ?? null,
+      revGrowth: md.revenueGrowthTTMYoy ?? null,
+      beta: md.beta
+    }
+  };
+}
+
+/* ── AUTOCOMPLETE ── */
+let acTimer = null;
+let acSelectedIdx = -1;
+
+async function searchTickers(q) {
+  if (q.length < 1) return [];
+
+  if (isLocalMode()) {
+    const key = document.getElementById("localFinnhub").value.trim();
+    if (!key) return [];
+    const r = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(q)}&token=${key}`);
+    if (!r.ok) return [];
+    const data = await r.json();
+    return (data.result || []).filter(x => x.type === "Common Stock").slice(0, 8);
+  }
+
+  const data = await proxyGet("search", { q });
+  return data.result || [];
+}
+
+function showDropdown(items) {
+  const dd = document.getElementById("acDropdown");
+  acSelectedIdx = -1;
+  if (!items.length) { dd.classList.remove("open"); dd.innerHTML = ""; return; }
+  dd.innerHTML = items.map((it, i) => `
+    <div class="ac-item" data-ticker="${it.symbol}" data-idx="${i}">
+      <span class="ac-ticker">${escapeHTML(it.symbol)}</span>
+      <span class="ac-name">${escapeHTML(it.description || "")}</span>
+      <span class="ac-exchange">${escapeHTML(it.primaryExchange || "")}</span>
+    </div>
+  `).join("");
+  dd.classList.add("open");
+
+  dd.querySelectorAll(".ac-item").forEach(el => {
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      selectTicker(el.dataset.ticker);
+    });
+  });
+}
+
+function hideDropdown() {
+  const dd = document.getElementById("acDropdown");
+  dd.classList.remove("open");
+  dd.innerHTML = "";
+  acSelectedIdx = -1;
+}
+
+function selectTicker(ticker) {
+  document.getElementById("tickerInput").value = ticker;
+  hideDropdown();
+  runAnalyze(ticker);
+}
+
+function highlightItem(idx, items) {
+  const dd = document.getElementById("acDropdown");
+  const els = dd.querySelectorAll(".ac-item");
+  els.forEach(el => el.classList.remove("selected"));
+  if (idx >= 0 && idx < els.length) els[idx].classList.add("selected");
+}
+
+/* Wire autocomplete to input */
+document.getElementById("tickerInput").addEventListener("input", (e) => {
+  const val = e.target.value.toUpperCase().trim();
+  e.target.value = val;
+  clearTimeout(acTimer);
+  if (!val) { hideDropdown(); return; }
+  const dd = document.getElementById("acDropdown");
+  dd.innerHTML = `<div class="ac-loading"><span class="spinner"></span>Buscando...</div>`;
+  dd.classList.add("open");
+  acTimer = setTimeout(async () => {
+    try {
+      const results = await searchTickers(val);
+      showDropdown(results);
+    } catch { hideDropdown(); }
+  }, 280);
+});
+
+document.getElementById("tickerInput").addEventListener("keydown", (e) => {
+  const dd = document.getElementById("acDropdown");
+  const items = dd.querySelectorAll(".ac-item");
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    acSelectedIdx = Math.min(acSelectedIdx + 1, items.length - 1);
+    highlightItem(acSelectedIdx, items);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    acSelectedIdx = Math.max(acSelectedIdx - 1, -1);
+    highlightItem(acSelectedIdx, items);
+  } else if (e.key === "Enter") {
+    if (acSelectedIdx >= 0 && items[acSelectedIdx]) {
+      e.preventDefault();
+      selectTicker(items[acSelectedIdx].dataset.ticker);
+    } else {
+      hideDropdown();
+      runAnalyze();
+    }
+  } else if (e.key === "Escape") {
+    hideDropdown();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!document.getElementById("searchWrap").contains(e.target)) hideDropdown();
+});
+
+/* ── FETCH NEWS ── */
+async function fetchNews(ticker) {
+  try {
+    if (isLocalMode()) {
+      const key = document.getElementById("localFinnhub").value.trim();
+      if (!key) return null;
+      const now = new Date();
+      const to = now.toISOString().split("T")[0];
+      const from = new Date(now - 7 * 864e5).toISOString().split("T")[0];
+      const [newsRes, sentRes] = await Promise.all([
+        fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${from}&to=${to}&token=${key}`),
+        fetch(`https://finnhub.io/api/v1/news-sentiment?symbol=${ticker}&token=${key}`)
+      ]);
+      let articles = [];
+      if (newsRes.ok) {
+        const raw = await newsRes.json();
+        articles = (raw || []).slice(0, 10).map(a => ({
+          headline: a.headline, source: a.source, url: a.url,
+          datetime: a.datetime, date: new Date(a.datetime * 1000).toISOString().split("T")[0],
+          summary: (a.summary || "").slice(0, 200)
+        }));
+      }
+      let sentiment = null;
+      if (sentRes.ok) {
+        const sd = await sentRes.json();
+        if (sd && sd.sentiment) {
+          sentiment = {
+            bullishPercent: sd.sentiment.bullishPercent,
+            bearishPercent: sd.sentiment.bearishPercent,
+            score: sd.companyNewsScore,
+            buzz: sd.buzz,
+            sectorAvgScore: sd.sectorAverageBullishPercent,
+            articleCount: sd.buzz?.articlesInLastWeek
+          };
+        }
+      }
+      return { articles, sentiment };
+    }
+    return await proxyGet("news", { ticker });
+  } catch (e) {
+    console.warn("[Sentinel] News fetch failed:", e.message);
+    return null;
+  }
+}
+
+function renderNews(newsData) {
+  const container = document.getElementById("sentimentBlock");
+  if (!newsData) return;
+
+  let html = "";
+
+  // Sentiment score (if available from Finnhub)
+  if (newsData.sentiment && newsData.sentiment.score != null) {
+    const sc = newsData.sentiment.score;
+    const bullPct = newsData.sentiment.bullishPercent;
+    const bearPct = newsData.sentiment.bearishPercent;
+    const artCount = newsData.sentiment.articleCount || "—";
+    const sectorAvg = newsData.sentiment.sectorAvgScore;
+
+    const sentLabel = sc > 0.6 ? "Bullish" : sc < 0.4 ? "Bearish" : "Neutral";
+    const sentColor = sc > 0.6 ? "var(--green)" : sc < 0.4 ? "var(--red)" : "var(--amber)";
+
+    html += `<div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:6px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:800;line-height:1;color:${sentColor};">${(sc * 100).toFixed(0)}</div>
+      <div style="padding-bottom:6px;">
+        <div style="font-size:14px;font-weight:700;color:${sentColor};">${sentLabel}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${artCount} artículos · últimos 7 días</div>
+      </div>
+    </div>`;
+
+    if (bullPct != null) {
+      html += `<div style="display:flex;gap:16px;font-size:12px;margin-bottom:12px;">
+        <span style="color:var(--green);">Bull ${(bullPct * 100).toFixed(0)}%</span>
+        <span style="color:var(--red);">Bear ${(bearPct * 100).toFixed(0)}%</span>
+        ${sectorAvg != null ? `<span style="color:var(--text-muted);">Sector avg ${(sectorAvg * 100).toFixed(0)}%</span>` : ""}
+      </div>`;
+    }
+  } else if (newsData.articles && newsData.articles.length > 0) {
+    // No hay sentiment score pero sí hay noticias — mostrar conteo
+    html += `<div style="display:flex;align-items:flex-end;gap:14px;margin-bottom:6px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:48px;font-weight:800;line-height:1;color:var(--accent);">${newsData.articles.length}</div>
+      <div style="padding-bottom:6px;">
+        <div style="font-size:14px;font-weight:700;color:var(--accent);">Noticias</div>
+        <div style="font-size:11px;color:var(--text-muted);">últimos 7 días · fuente: Finnhub</div>
+      </div>
+    </div>`;
+  } else {
+    html += `<div style="color:var(--text-muted);font-size:13px;margin-bottom:12px;">Sin noticias recientes para este ticker.</div>`;
+  }
+
+  // Noticias recientes
+  if (newsData.articles && newsData.articles.length > 0) {
+    html += `<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">`;
+    html += `<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;font-weight:600;">Noticias recientes</div>`;
+    newsData.articles.slice(0, 5).forEach(a => {
+      html += `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+        <a href="${escapeHTML(a.url)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:500;line-height:1.4;display:block;">${escapeHTML(a.headline)}</a>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${escapeHTML(a.source)} · ${a.date}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+/* ── CLAUDE AI ── */
+async function callClaude(data, risk, regime, newsData, marketState, candles, insidersData, recsData, macroData) {
+  const baseline = risk.baseline;
+  const m = data.metrics;
+
+  let newsContext = "";
+  if (newsData && newsData.articles && newsData.articles.length > 0) {
+    const headlines = newsData.articles.slice(0, 5).map(a => `- [${a.date}] ${a.headline} (${a.source})`).join("\n");
+    newsContext = `\n\nNOTICIAS RECIENTES (últimos 7 días, fuente: Finnhub):\n${headlines}`;
+    if (newsData.sentiment && newsData.sentiment.score != null) {
+      newsContext += `\n\nSENTIMENT SCORE: ${(newsData.sentiment.score * 100).toFixed(0)}/100 (bullish: ${((newsData.sentiment.bullishPercent||0)*100).toFixed(0)}%, bearish: ${((newsData.sentiment.bearishPercent||0)*100).toFixed(0)}%)`;
+    }
+  }
+
+  const overrideNote = TICKER_OVERRIDES[data.symbol] ? `\nNOTA: Finnhub clasifica a ${data.symbol} como "${data.sector}" pero operacionalmente funciona como ${risk.sectorKey}. Los baselines usados son los de ${risk.sectorKey}.` : "";
+
+  let marketContext = "";
+  if (marketState && marketState.vix != null) {
+    marketContext = `\n\nCONTEXTO DE MERCADO:\n- VIX actual: ${marketState.vix.toFixed(1)}\n- Régimen auto-detectado: ${marketState.regime}`;
+  }
+
+  let techContext = "";
+  if (candles) {
+    const parts = [];
+    if (candles.volatility != null) parts.push(`Volatilidad anualizada: ${candles.volatility.toFixed(1)}%`);
+    if (candles.momentum != null) parts.push(`Momentum 90d: ${candles.momentum >= 0 ? '+' : ''}${candles.momentum.toFixed(1)}%`);
+    if (parts.length) techContext = `\n\nMÉTRICAS TÉCNICAS:\n- ${parts.join("\n- ")}`;
+  }
+
+  // Insider context (PC-3: differentiate programmed vs opportunistic sales)
+  let insiderContext = "";
+  if (insidersData && insidersData.recentCount > 0) {
+    const netFmt = Math.abs(insidersData.netValue) >= 1e6
+      ? `$${(Math.abs(insidersData.netValue)/1e6).toFixed(1)}M`
+      : `$${(Math.abs(insidersData.netValue)/1e3).toFixed(0)}K`;
+
+    const programmedNote = insidersData.hasProgrammedSales
+      ? `\n- NOTA: Parte de las ventas corresponde a planes programados (Rule 10b5-1) declarados con anticipación — estos NO son señal de alarma y deben mencionarse como ventas de rutina.`
+      : "";
+
+    const opportunisticFmt = insidersData.opportunisticSellValue >= 1e6
+      ? `$${(insidersData.opportunisticSellValue/1e6).toFixed(1)}M`
+      : `$${(insidersData.opportunisticSellValue/1e3).toFixed(0)}K`;
+
+    insiderContext = `\n\nINSIDER TRANSACTIONS (últimos 90 días):
+- Señal neta (solo ventas oportunistas): ${insidersData.signal.toUpperCase()} (${netFmt} neto)
+- Ventas oportunistas (señal real): ${opportunisticFmt}
+- Ventas programadas 10b5-1 (rutina, NO alarma): $${(insidersData.programmedSellValue/1e6 || 0).toFixed(1)}M
+- Transacciones recientes: ${insidersData.transactions.slice(0,3).map(t =>
+  `${t.name?.split(" ")[0]} ${t.type === "buy" ? "compró" : "vendió"} ${Math.abs(t.shares||0).toLocaleString()} acciones el ${t.date}${t.isProgrammed ? " (plan programado)" : " (venta discrecional)"}`
+).join("; ")}${programmedNote}
+INSTRUCCIÓN: Distinguir claramente entre ventas de plan programado (rutina administrativa) y ventas discrecionales/oportunistas (señal de alerta real).`;
+  }
+
+  // Analyst recommendations context
+  let recContext = "";
+  if (recsData && recsData.trend !== "unknown" && recsData.latest?.total > 0) {
+    const l = recsData.latest;
+    recContext = `\n\nCONSENSO DE ANALISTAS:
+- Tendencia: ${recsData.trend === "improving" ? "mejorando" : recsData.trend === "deteriorating" ? "deteriorando" : "estable"}
+- Distribución actual: ${l.strongBuy||0} strong buy, ${l.buy||0} buy, ${l.hold||0} hold, ${l.sell||0} sell, ${l.strongSell||0} strong sell
+- Período: ${l.period}`;
+  }
+
+  const missingNote = risk.missing.count > 0 ? `\n\nATENCIÓN: ${risk.missing.count} factor(es) sin dato — el score usa fallback conservador donde falta info.` : "";
+
+  // Macro context
+  let macroContext = "";
+  if (macroData && macroData.bond10y != null) {
+    macroContext = `\n\nCONTEXTO MACRO:
+- Bono del Tesoro USA 10Y: ${macroData.bond10y.toFixed(2)}% (${macroData.bondSignal || "—"})
+- Condiciones financieras: ${macroData.macroDesc || "—"}
+IMPORTANTE: ${macroData.macroRisk === "restrictive" || macroData.macroRisk === "elevated"
+  ? "Las tasas elevadas comprimen los múltiplos de valoración. Una empresa con P/E alto bajo estas condiciones asume doble riesgo."
+  : "Las condiciones financieras son favorables para la valoración de activos de riesgo."}`;
+  }
+
+  const prompt = `Eres un analista de riesgo financiero riguroso. Analiza ${data.symbol} (${data.name}) en español latinoamericano.
+
+DATOS ACTUALES:
+- Precio: $${data.price} (${data.changesPct?.toFixed(2) ?? "N/A"}%)
+- Sector: ${data.sector} → normalizado: ${risk.sectorKey}${overrideNote}
+- Mkt Cap: ${data.mcap ? '$' + (data.mcap / 1e9).toFixed(1) + 'B' : 'N/A'}
+- P/E: ${m.pe?.toFixed(1) ?? "N/A"} (promedio sector: ${baseline.pe})
+- D/E: ${m.de?.toFixed(2) ?? "N/A"} (promedio sector: ${baseline.de})
+- Net Margin: ${m.netMargin?.toFixed(1) ?? "N/A"}% (promedio sector: ${baseline.netMargin}%)
+- Rev Growth: ${m.revGrowth?.toFixed(1) ?? "N/A"}% (promedio sector: ${baseline.revGrowth}%)${marketContext}${techContext}
+
+Risk Score: ${risk.score}/100 bajo régimen "${regime}"
+Sub-scores: Valuación=${risk.breakdown.valuation}, Salud=${risk.breakdown.health}, Crecimiento=${risk.breakdown.growth}, Volatilidad=${risk.breakdown.volatility}${missingNote}${macroContext}${insiderContext}${recContext}${newsContext}
+
+INSTRUCCIONES CRÍTICAS:
+1. Basa tu análisis en los datos numéricos Y las noticias proporcionadas. NO inventes eventos que no estén en las noticias.
+2. Si hay datos de insiders, analiza la divergencia: ¿coincide el comportamiento de directivos con el score de riesgo?
+3. Si el consenso de analistas está deteriorando, menciona la velocidad y el impacto.
+4. Si hay divergencias significativas (score bajo + insiders vendiendo, o score alto + insiders comprando), menciónalo explícitamente.
+5. Si NO hay noticias, basa el análisis solo en métricas. No alucines eventos.
+
+Devuelve SOLO un JSON válido (sin markdown) con:
+{
+  "verdict": "2-3 oraciones integrando métricas vs sector y noticias recientes si las hay",
+  "catalysts": ["3 bullets <15 palabras c/u"],
+  "risks": ["3 bullets <15 palabras c/u"],
+  "sentiment_themes": ["3 temas extraídos de las noticias o métricas"],
+  "bottom_line": "HOLD / NEUTRAL" o "BUY / ACCUMULATE" o "SELL / REDUCE",
+  "bottom_desc": "1 oración describiendo la acción",
+  "conservative": "acción concreta <10 palabras",
+  "aggressive": "acción concreta <10 palabras"
+}`;
+
+  if (isLocalMode()) {
+    // Modo local: llamada directa con key del campo
+    const key = document.getElementById("localClaude").value.trim();
+    if (!key) return null;
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1400,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    if (!resp.ok) throw new Error(`Claude ${resp.status}`);
+    const result = await resp.json();
+    const text = result.content?.[0]?.text || "";
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Claude no devolvió JSON válido");
+    return JSON.parse(match[0]);
+  }
+
+  // Modo proxy
+  const result = await proxyPost("claude", { prompt });
+  const text = result.content?.[0]?.text || "";
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Claude no devolvió JSON válido");
+  return JSON.parse(match[0]);
+}
+
+/* ── AUDIT LINKS ── */
+function buildAuditLinks(data) {
+  const t = data.symbol;
+  return [
+    { label: "SEC EDGAR 10-K/10-Q", url: `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${t}&type=10-K&dateb=&owner=include&count=10` },
+    { label: "Yahoo Finance Stats",  url: `https://finance.yahoo.com/quote/${t}/key-statistics` },
+    { label: "SEC filings search",   url: `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(t)}&forms=10-K,10-Q` },
+    { label: "Finnhub source",       url: `https://finnhub.io/search?query=${t}` }
+  ];
+}
+
+/* ── HELPERS ── */
+function riskClass(v) { return v < 45 ? "low" : v < 65 ? "mid" : "high"; }
+function fmtMcap(n) {
+  if (!n) return "—";
+  if (n >= 1e12) return `$${(n/1e12).toFixed(2)}T`;
+  if (n >= 1e9)  return `$${(n/1e9).toFixed(0)}B`;
+  if (n >= 1e6)  return `$${(n/1e6).toFixed(0)}M`;
+  return `$${n}`;
+}
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])
+  );
+}
+function defaultBottomLine(score) {
+  if (score >= 70) return { verdict: "SELL / REDUCE", cls: "high", desc: "Riesgo elevado vs promedio sectorial. Considera reducir exposición.", cons: "Reducir posición o vender calls", agg: "Puts de protección OTM" };
+  if (score >= 55) return { verdict: "HOLD / NEUTRAL", cls: "mid", desc: "Riesgo balanceado. Monitorear catalizadores.", cons: "Mantener tamaño, no aumentar", agg: "Swing trade con stops ajustados" };
+  return { verdict: "BUY / ACCUMULATE", cls: "low", desc: "Métricas razonables vs promedio sectorial.", cons: "DCA — entrar por tramos", agg: "Posición completa, hold 6-12m" };
+}
+
+/* ── RENDER ── */
+function renderReport(data, risk, regime, marketState, candles) {
+  document.getElementById("reportState").classList.add("hidden");
+  document.getElementById("reportContent").classList.remove("hidden");
+
+  const conf = computeConfidence(data.metrics, { volatility: candles?.volatility, momentum: candles?.momentum });
+  const confEl = document.getElementById("confidenceVal");
+  confEl.textContent = conf + "%";
+  confEl.className = "status-value " + (conf >= 80 ? "green" : conf >= 50 ? "amber" : "red");
+
+  // Regime pulse class
+  const regimeLabel = regime.toUpperCase() + (marketState?.vix != null ? ` · VIX ${marketState.vix.toFixed(1)}` : "");
+  document.getElementById("regimeVal").textContent = regimeLabel;
+  document.getElementById("regimeVal").className = `status-value regime-${regime}`;
+  const dataEl = document.getElementById("dataVal");
+  dataEl.innerHTML = `<span class="dot"></span>${data.provider} Live`;
+  dataEl.className = "status-value green";
+
+  document.getElementById("companyTicker").textContent = data.symbol;
+  document.getElementById("companyName").textContent = `${data.name || "—"} — ${data.sector || "—"}`;
+  document.getElementById("companyPrice").textContent = data.price != null ? `$${data.price.toFixed(2)}` : "$—";
+  const chEl = document.getElementById("companyChange");
+  if (data.changesPct != null) {
+    chEl.textContent = `${data.changesPct >= 0 ? "+" : ""}${data.changesPct.toFixed(2)}% today`;
+    chEl.className = "company-change " + (data.changesPct >= 0 ? "up" : "down");
+  } else chEl.textContent = "—";
+
+  const pfWarn = computePortfolioWarningFor(data.symbol);
+  const warnBanner = document.getElementById("warnBanner");
+  if (pfWarn) { warnBanner.classList.remove("hidden"); document.getElementById("warnText").textContent = pfWarn; }
+  else warnBanner.classList.add("hidden");
+
+  document.getElementById("metricMcap").textContent = fmtMcap(data.mcap);
+  document.getElementById("metricPE").textContent = data.metrics.pe != null ? data.metrics.pe.toFixed(1) + "x" : "—";
+  document.getElementById("metricDE").textContent = data.metrics.de != null ? data.metrics.de.toFixed(2) : "—";
+  document.getElementById("metricSector").textContent = risk.sectorKey.replace("_DEFAULT_", "S&P avg");
+
+  // Score with entrance animation
+  const scoreEl = document.getElementById("scoreBig");
+  // PC-2: If 2+ key factors missing, show low confidence warning
+  const criticalMissing = (risk.missing.valuation ? 1 : 0) + (risk.missing.health ? 1 : 0) + (risk.missing.margin && risk.missing.revGrowth ? 1 : 0);
+  if (criticalMissing >= 2) {
+    scoreEl.textContent = risk.score.toFixed(0);
+    scoreEl.className = "score-big mid"; // Force amber regardless of score
+    scoreEl.classList.remove("animating");
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("animating");
+
+    const verdictEl = document.getElementById("scoreVerdict");
+    verdictEl.innerHTML = `<span style="color:var(--amber);font-weight:700;">⚠ Datos insuficientes</span> — score estimado con ${criticalMissing} factores sin dato. Verificar en fuentes oficiales antes de tomar decisiones.`;
+    verdictEl.className = "score-verdict mid";
+  } else {
+    scoreEl.textContent = risk.score.toFixed(0);
+    scoreEl.className = "score-big " + riskClass(risk.score);
+    scoreEl.classList.remove("animating");
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("animating");
+
+    const verdictEl = document.getElementById("scoreVerdict");
+    const vt = risk.score < 45 ? "Bajo" : risk.score < 65 ? "Moderado" : risk.score < 80 ? "Alto" : "Crítico";
+    const vs = risk.score < 45 ? "favorable vs sector" : risk.score < 65 ? "monitorear de cerca" : "múltiples factores adversos";
+    let missingTag = "";
+    if (risk.missing.count > 0) {
+      missingTag = ` · <span style="color:var(--amber);font-size:11px;" title="Finnhub no tiene este dato en plan gratuito — el score usa estimación conservadora de 55, lo que puede sobrestimar el riesgo">${risk.missing.count} factor(es) sin dato ⓘ</span>`;
+    }
+    verdictEl.innerHTML = `<b>${vt}</b> — ${vs}${missingTag}`;
+    verdictEl.className = "score-verdict " + riskClass(risk.score);
+  }
+
+  const b = risk.breakdown, w = risk.weights;
+  document.getElementById("barsList").innerHTML = [
+    barRow("Valuation",  b.valuation,  w.valuation,  risk.missing.valuation),
+    barRow("Health",     b.health,     w.health,     risk.missing.health),
+    barRow("Growth",     b.growth,     w.growth,     risk.missing.margin && risk.missing.revGrowth),
+    barRow("Volatility", b.volatility, w.volatility, risk.missing.volatility)
+  ].join("");
+
+  // Animate bars filling in — use double rAF to ensure DOM is painted first
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".bar-fill[data-target]").forEach(el => {
+        el.style.width = el.dataset.target + "%";
+      });
+    });
+  });
+
+  let rn = `Regime: ${regime.toUpperCase()} — val ${(w.valuation*100).toFixed(0)}% / hea ${(w.health*100).toFixed(0)}% / gro ${(w.growth*100).toFixed(0)}% / vol ${(w.volatility*100).toFixed(0)}%`;
+  if (marketState?.vix != null) rn += ` · VIX ${marketState.vix.toFixed(1)}`;
+  if (candles?.volatility != null) rn += ` · σ ${candles.volatility.toFixed(0)}%`;
+  if (candles?.momentum != null) rn += ` · mom ${candles.momentum >= 0 ? '+' : ''}${candles.momentum.toFixed(0)}%`;
+  document.getElementById("regimeNote").textContent = rn;
+
+  renderSectorTable(data, risk);
+
+  const defBL = defaultBottomLine(risk.score);
+  setBottomLine(defBL.verdict, defBL.cls, defBL.desc, defBL.cons, defBL.agg);
+
+  document.getElementById("auditLinks").innerHTML = buildAuditLinks(data).map(l =>
+    `<a class="audit-link" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`
+  ).join("");
+}
+
+function barRow(label, value, weight, isMissing) {
+  const c = riskClass(value) === "low" ? "green" : riskClass(value) === "mid" ? "amber" : "red";
+  const missLabel = isMissing ? ` <span style="color:var(--amber);font-size:10px;">· sin dato</span>` : "";
+  return `
+    <div class="bar-row">
+      <span class="bar-label">${label} <span class="w">(${(weight*100).toFixed(0)}%)</span>${missLabel}</span>
+      <span class="bar-val" style="color:var(--${c});">${value}</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill ${c}" data-target="${Math.min(100, value)}" style="width:0%;"></div>
+    </div>`;
+}
+
+function renderSectorTable(data, risk) {
+  const base = risk.baseline, m = data.metrics;
+  const rows = [
+    { label: "P/E",        val: m.pe,        base: base.pe,        higherIsWorse: true,  fmt: v => v.toFixed(1) },
+    { label: "D/E",        val: m.de,        base: base.de,        higherIsWorse: true,  fmt: v => v.toFixed(2) },
+    { label: "Net Margin", val: m.netMargin, base: base.netMargin, higherIsWorse: false, fmt: v => v.toFixed(1)+"%" },
+    { label: "Rev Growth", val: m.revGrowth, base: base.revGrowth, higherIsWorse: false, fmt: v => v.toFixed(1)+"%" }
+  ];
+  document.getElementById("sectorTableBody").innerHTML = rows.map(r => {
+    if (r.val == null) return `<tr><td style="font-family:inherit;">${r.label}</td><td colspan="4" style="text-align:right;color:var(--text-muted);">sin dato</td></tr>`;
+    const dev = ((r.val - r.base) / r.base) * 100;
+    const adverse = r.higherIsWorse ? dev > 0 : dev < 0;
+    const mag = Math.abs(dev);
+    const tc = !adverse ? "low" : (mag > 50 ? "high" : mag > 20 ? "mid" : "low");
+    const tt = !adverse ? "mejor" : (mag > 50 ? "peor" : mag > 20 ? "cerca-peor" : "cerca");
+    return `<tr>
+      <td style="font-family:inherit;color:var(--text);">${r.label}</td>
+      <td style="text-align:right;">${r.fmt(r.val)}</td>
+      <td style="text-align:right;color:var(--text-muted);">${r.fmt(r.base)}</td>
+      <td style="text-align:right;color:${adverse?"var(--red)":"var(--green)"};">${dev>=0?"+":""}${dev.toFixed(1)}%</td>
+      <td style="text-align:right;"><span class="tag ${tc}">${tt}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function setBottomLine(verdict, cls, desc, cons, agg) {
+  const v = document.getElementById("blVerdict");
+  v.textContent = verdict; v.className = "bl-verdict " + cls;
+  document.getElementById("blDesc").textContent = desc;
+  document.getElementById("blConservative").textContent = cons;
+  document.getElementById("blAggressive").textContent = agg;
+}
+
+function renderAI(res) {
+  if (!res) return;
+  document.getElementById("aiStatus").textContent = "Claude Sonnet 4";
+  document.getElementById("aiText").innerHTML = `<p>${escapeHTML(res.verdict || "")}</p>`;
+  document.getElementById("catalystsList").innerHTML = (res.catalysts || []).map(c => `<li>${escapeHTML(c)}</li>`).join("") || `<li style="color:var(--text-muted);">—</li>`;
+  document.getElementById("risksList").innerHTML = (res.risks || []).map(r => `<li>${escapeHTML(r)}</li>`).join("") || `<li style="color:var(--text-muted);">—</li>`;
+  if (res.bottom_line) {
+    const cls = /SELL|REDUCE/i.test(res.bottom_line) ? "high" : /BUY|ACCUMULATE/i.test(res.bottom_line) ? "low" : "mid";
+    setBottomLine(res.bottom_line, cls, res.bottom_desc || "", res.conservative || "—", res.aggressive || "—");
+  }
+}
+
+/* ── NEW v5 FETCH HELPERS ── */
+async function fetchMarketState() {
+  if (isLocalMode()) return { vix: null, regime: "neutral" };
+  try { return await proxyGet("market-state"); } catch (e) { return { vix: null, regime: "neutral" }; }
+}
+
+async function fetchCandles(ticker) {
+  if (isLocalMode()) return { volatility: null, momentum: null, avgVolume: null };
+  try {
+    const result = await proxyGet("candles", { ticker });
+    return result || { volatility: null, momentum: null, avgVolume: null };
+  } catch (e) {
+    return { volatility: null, momentum: null, avgVolume: null };
+  }
+}
+
+async function fetchInsiders(ticker) {
+  if (isLocalMode()) return null;
+  try { return await proxyGet("insiders", { ticker }); } catch (e) { return null; }
+}
+
+async function fetchRecommendations(ticker) {
+  if (isLocalMode()) return null;
+  try { return await proxyGet("recommendations", { ticker }); } catch (e) { return null; }
+}
+
+async function fetchMacroContext() {
+  if (isLocalMode()) return null;
+  try { return await proxyGet("macro-context"); } catch (e) { return null; }
+}
+
+async function fetchBacktestStats() {
+  if (isLocalMode()) return { sample_size: 0 };
+  try { return await proxyGet("backtest-stats"); } catch (e) { return { sample_size: 0 }; }
+}
+
+function renderBacktestStats(stats) {
+  const container = document.getElementById("globalBacktestBlock");
+  if (!container) return;
+  if (!stats || stats.sample_size === 0) {
+    container.innerHTML = `<div style="font-size:11px;color:var(--text-muted);padding:8px 0;">Aún no hay datos de backtesting global. Se acumulan automáticamente cada 30 días.</div>`;
+    return;
+  }
+  const hr = stats.hit_rate;
+  const avgR = stats.avg_return_high_risk;
+  container.innerHTML = `
+    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Backtesting global · Score ≥70</div>
+    <div style="display:flex;gap:16px;">
+      <div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${hr > 60 ? 'var(--green)' : hr > 40 ? 'var(--amber)' : 'var(--red)'};">${hr != null ? hr.toFixed(0) + '%' : '—'}</div><div style="font-size:10px;color:var(--text-muted);">Hit rate</div></div>
+      <div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${avgR < 0 ? 'var(--green)' : 'var(--red)'};">${avgR != null ? (avgR >= 0 ? '+' : '') + avgR.toFixed(1) + '%' : '—'}</div><div style="font-size:10px;color:var(--text-muted);">Return 30d</div></div>
+      <div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;">${stats.high_risk_signals || 0}</div><div style="font-size:10px;color:var(--text-muted);">Señales</div></div>
+    </div>`;
+}
+
+/* ── SUPABASE: SNAPSHOT + HISTORY ── */
+async function saveSnapshot(data, risk, regime, newsData, marketState, candles) {
+  const payload = {
+    ticker: data.symbol,
+    price: data.price,
+    score: risk.score,
+    regime: regime,
+    sector_key: risk.sectorKey,
+    valuation_sub: risk.breakdown.valuation,
+    health_sub: risk.breakdown.health,
+    growth_sub: risk.breakdown.growth,
+    pe: data.metrics.pe,
+    de: data.metrics.de,
+    net_margin: data.metrics.netMargin,
+    rev_growth: data.metrics.revGrowth,
+    news_sentiment: newsData?.sentiment?.score ?? null,
+    volatility: candles?.volatility ?? null,
+    vix: marketState?.vix ?? null,
+    beta: data.metrics.beta ?? null,
+    avg_volume: candles?.avgVolume ?? null,
+    momentum_90d: candles?.momentum ?? null,
+    confidence: computeConfidence(data.metrics, { volatility: candles?.volatility, momentum: candles?.momentum })
+  };
+  if (isLocalMode()) { console.log("[Sentinel] Snapshot (local):", payload); return; }
+  await proxyPost("snapshot", payload);
+  console.log("[Sentinel] Snapshot saved for", data.symbol);
+}
+
+async function fetchHistory(ticker) {
+  if (isLocalMode()) return [];
+  return await proxyGet("history", { ticker, limit: 20 });
+}
+
+function renderHistory(rows) {
+  const container = document.getElementById("historyBlock");
+  if (!container) return;
+  if (!rows || rows.length < 2) {
+    container.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:10px 0;">Se necesitan al menos 2 análisis para mostrar tendencia. Cada vez que analizas un ticker se guarda automáticamente.</div>`;
+    return;
+  }
+
+  const latest = rows[0];
+  const prev = rows[1];
+  const delta = latest.score - prev.score;
+  const deltaColor = delta > 0 ? "var(--red)" : delta < 0 ? "var(--green)" : "var(--text-dim)";
+  const deltaIcon = delta > 0 ? "▲" : delta < 0 ? "▼" : "—";
+  const priceDelta = latest.price && prev.price ? ((latest.price - prev.price) / prev.price * 100) : null;
+
+  let html = `<div style="display:flex;gap:20px;align-items:center;margin-bottom:10px;">
+    <div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Score trend</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${deltaColor};">${deltaIcon} ${Math.abs(delta).toFixed(1)}</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">vs análisis anterior</div>
+      <div style="font-size:12px;color:var(--text-dim);">${new Date(prev.created_at).toLocaleDateString("es-CL")} → hoy</div>
+    </div>
+    ${priceDelta != null ? `<div>
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Precio Δ</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:${priceDelta >= 0 ? 'var(--green)' : 'var(--red)'};">${priceDelta >= 0 ? '+' : ''}${priceDelta.toFixed(1)}%</div>
+    </div>` : ""}
+  </div>`;
+
+  // Mini table of last entries
+  html += `<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">Últimos ${rows.length} análisis</div>`;
+  html += `<div style="max-height:140px;overflow-y:auto;">`;
+  rows.slice(0, 10).forEach(r => {
+    const date = new Date(r.created_at).toLocaleDateString("es-CL", { day:"2-digit", month:"short" });
+    html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      <span style="color:var(--text-dim);">${date}</span>
+      <span style="font-family:'JetBrains Mono',monospace;color:${riskClass(r.score) === 'low' ? 'var(--green)' : riskClass(r.score) === 'mid' ? 'var(--amber)' : 'var(--red)'};font-weight:600;">${r.score?.toFixed(0)}</span>
+      <span style="font-family:'JetBrains Mono',monospace;color:var(--text-dim);">$${r.price?.toFixed(2) || "—"}</span>
+      <span style="color:var(--text-muted);">${r.regime}</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Self-audit when enough data
+  if (rows.length >= 5) {
+    const highRiskEntries = rows.filter(r => r.score >= 70);
+    if (highRiskEntries.length >= 2) {
+      const nextEntries = highRiskEntries.map(hr => {
+        const idx = rows.indexOf(hr);
+        const next = rows[idx - 1]; // más reciente
+        if (!next || !hr.price || !next.price) return null;
+        return ((next.price - hr.price) / hr.price) * 100;
+      }).filter(x => x !== null);
+      if (nextEntries.length >= 2) {
+        const avgReturn = nextEntries.reduce((s,x) => s+x, 0) / nextEntries.length;
+        const hitRate = nextEntries.filter(x => x < 0).length / nextEntries.length * 100;
+        html += `<div style="margin-top:10px;padding:10px;background:var(--bg-soft);border-radius:6px;border-left:2px solid var(--accent);font-size:12px;color:var(--text-dim);">
+          <strong style="color:var(--text);">Auto-auditoría (datos reales):</strong> De ${nextEntries.length} veces que el score fue ≥70, el precio bajó en ${hitRate.toFixed(0)}% de los casos (retorno promedio: ${avgReturn >= 0 ? '+' : ''}${avgReturn.toFixed(1)}%).
+        </div>`;
+      }
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+/* ── DIVERGENCE SIGNALS ── */
+function renderDivergenceCard(risk, insiders, recs, history, macro) {
+  const container = document.getElementById("divergenceCard");
+  if (!container) return;
+
+  const signals = [];
+
+  // Signal 1: Insiders
+  if (insiders && insiders.signal !== "neutral" && insiders.recentCount > 0) {
+    const isPositive = insiders.signal === "bullish";
+    const divergence = (risk.score >= 65 && insiders.signal === "bullish")
+      ? { type: "opportunity", label: "Oportunidad: Score alto pero insiders comprando" }
+      : (risk.score < 50 && insiders.signal === "bearish" && !insiders.hasProgrammedSales)
+      ? { type: "trap", label: "Trampa: Score bajo pero insiders vendiendo (ventas discrecionales)" }
+      : null;
+
+    const netFmt = Math.abs(insiders.netValue) >= 1e6
+      ? `$${(Math.abs(insiders.netValue)/1e6).toFixed(1)}M`
+      : `$${(Math.abs(insiders.netValue)/1e3).toFixed(0)}K`;
+
+    // PC-3: Show programmed sales caveat
+    const programmedNote = insiders.hasProgrammedSales
+      ? ` · <span style="color:var(--text-muted);font-size:10px;">incluye ventas de plan programado (rutina)</span>`
+      : "";
+
+    signals.push({
+      icon: insiders.signal === "bullish" ? "🟢" : "🔴",
+      title: `Insiders: ${insiders.signal === "bullish" ? "Comprando" : "Vendiendo"} (${netFmt} neto)${insiders.hasProgrammedSales ? " ⚠ parcialmente programado" : ""}`,
+      detail: insiders.transactions.slice(0, 2).map(t =>
+        `${t.name?.split(" ")[0] || "Directivo"} (${t.title?.slice(0,20) || "—"}) — ${t.type === "buy" ? "+" : "-"}${t.shares?.toLocaleString() || "—"} acciones · ${t.date}${t.isProgrammed ? " [plan 10b5-1]" : ""}`
+      ).join(" | ") + programmedNote,
+      divergence,
+      color: insiders.signal === "bullish" ? "var(--green)" : "var(--red)"
+    });
+  }
+
+  // Signal 2: Analyst recommendations
+  if (recs && recs.trend !== "unknown" && recs.latest?.total > 0) {
+    const l = recs.latest;
+    const buyPct = l.total > 0 ? Math.round(((l.strongBuy + l.buy) / l.total) * 100) : 0;
+    const sellPct = l.total > 0 ? Math.round(((l.sell + l.strongSell) / l.total) * 100) : 0;
+    const trendIcon = recs.trend === "improving" ? "📈" : recs.trend === "deteriorating" ? "📉" : "➡️";
+    const trendLabel = recs.trend === "improving" ? "mejorando" : recs.trend === "deteriorating" ? "deteriorando" : "estable";
+
+    const divergence = (risk.score < 50 && recs.trend === "deteriorating")
+      ? { type: "trap", label: "Score bajo pero analistas bajando recomendaciones" }
+      : (risk.score >= 65 && recs.trend === "improving")
+      ? { type: "opportunity", label: "Score alto pero analistas mejorando outlook" }
+      : null;
+
+    signals.push({
+      icon: trendIcon,
+      title: `Analistas: ${buyPct}% Buy · ${sellPct}% Sell · Tendencia ${trendLabel}`,
+      detail: `${l.strongBuy || 0} strong buy · ${l.buy || 0} buy · ${l.hold || 0} hold · ${l.sell || 0} sell · ${l.strongSell || 0} strong sell`,
+      divergence,
+      color: recs.trend === "improving" ? "var(--green)" : recs.trend === "deteriorating" ? "var(--red)" : "var(--text-dim)"
+    });
+  }
+
+  // Signal 3: Risk trend from own history
+  if (history && history.length >= 3) {
+    const newest = history[0].score;
+    const oldest = history[history.length - 1].score;
+    const delta = newest - oldest;
+    if (Math.abs(delta) >= 5) {
+      const rising = delta > 0;
+      signals.push({
+        icon: rising ? "⚡" : "✅",
+        title: `Tendencia propia: ${rising ? "Riesgo acelerando" : "Riesgo mejorando"} ${rising ? "+" : ""}${delta.toFixed(0)} pts en ${history.length} análisis`,
+        detail: history.slice(0, 3).map(h => `${h.analysis_date}: ${h.score?.toFixed(0) || "—"}`).join(" → "),
+        divergence: rising && newest >= 65 ? { type: "trap", label: "Riesgo subiendo rápido — vigilar de cerca" } : null,
+        color: rising ? "var(--red)" : "var(--green)"
+      });
+    }
+  }
+
+  // Signal 4: Macro context
+  if (macro && macro.bond10y != null) {
+    const isRestrictive = macro.macroRisk === "restrictive" || macro.macroRisk === "elevated";
+    const valHigh = risk.breakdown.valuation > 65;
+    signals.push({
+      icon: isRestrictive ? "🏦" : "🏦",
+      title: `Macro: Bono 10Y ${macro.bond10y.toFixed(2)}% — condiciones ${isRestrictive ? "restrictivas" : "favorables"}`,
+      detail: macro.macroDesc || "",
+      divergence: isRestrictive && valHigh
+        ? { type: "trap", label: "Valuación cara + tasas altas = riesgo doble de compresión de múltiplos" }
+        : null,
+      color: isRestrictive ? "var(--red)" : "var(--green)"
+    });
+  }
+
+  if (signals.length === 0) {
+    container.style.display = "none";
+    return;
+  }
+
+  // Check for critical divergences
+  const criticalDivergences = signals.filter(s => s.divergence);
+
+  let html = `<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+    <span style="font-size:16px;">${criticalDivergences.length > 0 ? "⚠" : "📊"}</span>
+    <strong style="font-size:14px;color:var(--text);">Divergencia de Señales</strong>
+    ${criticalDivergences.length > 0
+      ? `<span style="font-size:11px;padding:2px 8px;background:var(--amber-soft);color:var(--amber);border-radius:4px;font-weight:600;">
+          ${criticalDivergences.length} divergencia${criticalDivergences.length > 1 ? "s" : ""} detectada${criticalDivergences.length > 1 ? "s" : ""}
+        </span>`
+      : `<span style="font-size:11px;color:var(--text-muted);">señales alineadas</span>`
+    }
+  </div>`;
+
+  // Critical divergences first
+  criticalDivergences.forEach(s => {
+    const isOpportunity = s.divergence.type === "opportunity";
+    html += `<div style="padding:10px 14px;border-radius:8px;border-left:3px solid ${isOpportunity ? 'var(--green)' : 'var(--amber)'};
+      background:${isOpportunity ? 'var(--green-soft)' : 'var(--amber-soft)'};margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;color:${isOpportunity ? 'var(--green)' : 'var(--amber)'};">
+        ${isOpportunity ? "🎯" : "⚠"} ${s.divergence.label}
+      </div>
+    </div>`;
+  });
+
+  // All signals
+  signals.forEach(s => {
+    html += `<div style="padding:10px 12px;border-radius:8px;background:var(--bg-soft);border:1px solid var(--border);margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span>${s.icon}</span>
+        <span style="font-size:13px;font-weight:600;color:${s.color};">${s.title}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);padding-left:24px;">${s.detail}</div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+  container.style.display = "block";
+}
+
+function renderRiskTrend(history, currentScore) {
+  const container = document.getElementById("riskTrendBadge");
+  if (!container || !history || history.length < 2) {
+    if (container) container.style.display = "none";
+    return;
+  }
+
+  const prev = history[1]?.score;
+  if (!prev) { container.style.display = "none"; return; }
+
+  const delta = currentScore - prev;
+  const absDelta = Math.abs(delta);
+  if (absDelta < 2) { container.style.display = "none"; return; }
+
+  const rising = delta > 0;
+  const color = rising ? "var(--red)" : "var(--green)";
+  const arrow = rising ? "↑" : "↓";
+  const label = rising ? "subiendo" : "bajando";
+
+  container.innerHTML = `<span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:${color};font-size:14px;">
+    ${arrow} ${absDelta.toFixed(0)} pts
+  </span>
+  <span style="font-size:11px;color:${color};">${label} vs análisis anterior</span>`;
+  container.style.display = "flex";
+  container.style.gap = "6px";
+  container.style.alignItems = "center";
+}
+
+function renderMacroBadge(macro) {
+  const el = document.getElementById("bondVal");
+  if (!el) return;
+  if (!macro || macro.bond10y == null) {
+    el.textContent = "—";
+    el.className = "status-value";
+    return;
+  }
+  const b = macro.bond10y;
+  const color = b > 5.0 ? "red" : b > 4.0 ? "amber" : "green";
+  el.textContent = b.toFixed(2) + "%";
+  el.className = `status-value ${color}`;
+  el.title = macro.macroDesc || `Bono 10Y: ${b.toFixed(2)}%`;
+}
+
+/* ── STRESS TEST ── */
+let currentStressScenario = null;
+let baseRiskResult = null;
+let baseData = null;
+
+async function runStressTest(scenario) {
+  if (!baseData || !baseRiskResult) return;
+  if (scenario === "reset") {
+    currentStressScenario = null;
+    document.getElementById("stressResult").style.display = "none";
+    document.querySelectorAll(".stress-btn").forEach(b => b.classList.remove("active"));
+    renderReport(baseData, baseRiskResult, window.__lastRegime, window.__marketState, window.__candles);
+    return;
+  }
+
+  document.querySelectorAll(".stress-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.stress-btn[data-scenario="${scenario}"]`)?.classList.add("active");
+
+  const stressRes = document.getElementById("stressResult");
+  stressRes.style.display = "block";
+  stressRes.innerHTML = `<span class="spinner"></span> Calculando escenario...`;
+  stressRes.className = "stress-result active";
+
+  try {
+    const result = await proxyPost("stress-test", {
+      scenario,
+      metrics: baseData.metrics,
+      sectorKey: baseRiskResult.sectorKey
+    });
+
+    // Recalculate score with stressed metrics
+    const stressedRisk = calcRiskEngine(
+      result.stressedMetrics,
+      baseRiskResult.sectorKey,
+      "stress",
+      { volatility: result.shocks.volatility }
+    );
+
+    const delta = stressedRisk.score - baseRiskResult.score;
+    const deltaColor = delta > 10 ? "var(--red)" : delta > 0 ? "var(--amber)" : "var(--green)";
+    const cls = riskClass(stressedRisk.score);
+    const clsColor = cls === "low" ? "var(--green)" : cls === "mid" ? "var(--amber)" : "var(--red)";
+
+    stressRes.innerHTML = `
+      <div style="margin-bottom:10px;">
+        <strong style="color:var(--text);">${result.scenario}</strong>
+        <span style="font-size:11px;color:var(--text-dim);margin-left:8px;">${result.desc}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Score normal</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;">${baseRiskResult.score.toFixed(0)}</div>
+        </div>
+        <div style="font-size:28px;color:var(--text-muted);">→</div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Score bajo crisis</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:800;color:${clsColor};">${stressedRisk.score.toFixed(0)}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Impacto</div>
+          <div class="stress-delta" style="color:${deltaColor};">${delta >= 0 ? "+" : ""}${delta.toFixed(1)}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text-dim);">
+        <span>VIX: <strong style="color:var(--red);">${result.vix}</strong></span>
+        <span>P/E shock: <strong>${((result.shocks.peMultiplier - 1) * 100).toFixed(0)}%</strong></span>
+        <span>Rev Growth shock: <strong>${result.shocks.revenueGrowthShock > 0 ? "+" : ""}${result.shocks.revenueGrowthShock}pp</strong></span>
+        <span>Margen shock: <strong>${result.shocks.marginShock > 0 ? "+" : ""}${result.shocks.marginShock}pp</strong></span>
+      </div>
+      ${stressedRisk.score >= 75 ? `<div style="margin-top:10px;padding:8px 12px;background:var(--red-soft);border-radius:6px;border-left:3px solid var(--red);font-size:12px;color:#7f1d1d;">⚠ Bajo este escenario el ticker entra en zona de <strong>riesgo crítico</strong>. Considerar cobertura o reducción de posición.</div>` : ""}
+      ${stressedRisk.score < 55 ? `<div style="margin-top:10px;padding:8px 12px;background:var(--green-soft);border-radius:6px;border-left:3px solid var(--green);font-size:12px;color:#14532d;">✓ Este ticker muestra <strong>resiliencia</strong> ante el escenario simulado.</div>` : ""}
+    `;
+    currentStressScenario = scenario;
+  } catch (e) {
+    stressRes.innerHTML = `<span style="color:var(--red);">Error: ${escapeHTML(e.message)}</span>`;
+  }
+}
+
+/* ── SLEEP-AT-NIGHT INDEX ── */
+function calcSaN(portfolio) {
+  if (portfolio.length < 2) return null;
+  const total = portfolio.reduce((s, p) => s + p.weight, 0);
+  if (total === 0) return null;
+  const avgRisk = portfolio.reduce((s, p) => s + p.risk * p.weight, 0) / total;
+
+  // HHI concentration (0-1, lower = better)
+  const byS = {};
+  portfolio.forEach(p => { byS[p.sectorKey] = (byS[p.sectorKey] || 0) + p.weight; });
+  const hhi = Object.values(byS).reduce((s, w) => s + Math.pow(w / total, 2), 0);
+
+  // SaN formula:
+  // Base: 100 - avgRisk (starts from risk baseline)
+  // Penalty: concentration (hhi 1.0 = one sector = -20 pts max)
+  // Bonus: diversification (more sectors = better)
+  const sectors = Object.keys(byS).length;
+  const concentrationPenalty = hhi * 20;
+  const divBonus = Math.min(sectors * 3, 15);
+
+  const san = Math.max(0, Math.min(100, (100 - avgRisk) - concentrationPenalty + divBonus));
+  return Math.round(san);
+}
+
+function renderSaN(portfolio) {
+  const container = document.getElementById("sanBlock");
+  if (!container) return;
+  const san = calcSaN(portfolio);
+  if (san === null) {
+    container.innerHTML = `<div style="color:var(--text-muted);font-size:12px;padding:10px 0;">Agrega al menos 2 posiciones para calcular el índice de resiliencia.</div>`;
+    return;
+  }
+
+  const color = san >= 70 ? "var(--green)" : san >= 45 ? "var(--amber)" : "var(--red)";
+  const label = san >= 70 ? "Puedes dormir tranquilo" : san >= 45 ? "Monitorear regularmente" : "⚠ Portafolio frágil";
+  const sublabel = san >= 70
+    ? "Tu portafolio está bien diversificado y resistiría volatilidad moderada."
+    : san >= 45
+    ? "Concentración moderada. Un shock sectorial afectaría parte significativa."
+    : "Alta concentración. Un evento adverso en un sector impacta todo el portafolio.";
+
+  // SVG dial
+  const pct = san / 100;
+  const circumference = 2 * Math.PI * 44;
+  const dashOffset = circumference * (1 - pct);
+
+  container.innerHTML = `
+    <div class="san-dial">
+      <svg viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="44" fill="none" stroke="var(--border)" stroke-width="8"/>
+        <circle cx="60" cy="60" r="44" fill="none" stroke="${color}" stroke-width="8"
+          stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+          stroke-linecap="round" transform="rotate(-90 60 60)"
+          style="transition: stroke-dashoffset 0.8s cubic-bezier(0.19,1,0.22,1);"/>
+      </svg>
+      <div class="san-value" style="color:${color};">${san}</div>
+    </div>
+    <div style="text-align:center;margin-bottom:8px;">
+      <div style="font-weight:700;color:${color};font-size:14px;">${label}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">${sublabel}</div>
+    </div>
+    ${san < 45 ? `
+    <div style="padding:10px 12px;background:var(--red-soft);border-radius:8px;border-left:3px solid var(--red);font-size:12px;color:#7f1d1d;margin-top:8px;">
+      <strong>Plan de resiliencia:</strong> Considera agregar activos de sectores no correlacionados
+      (utilities, healthcare, defensive) para subir el SaN por encima de 60.
+    </div>` : ""}
+  `;
+}
+
+/* ── SaN HISTORY CHART ── */
+function renderSaNHistoryChart(rows) {
+  const block = document.getElementById("sanHistoryBlock");
+  const canvas = document.getElementById("sanChart");
+  const trendEl = document.getElementById("sanTrendText");
+  if (!block || !canvas || !rows || rows.length < 2) {
+    if (block) block.style.display = "none";
+    return;
+  }
+  block.style.display = "block";
+  canvas._sanRows = rows; // store for resize redraw
+  const data = rows.slice(0, 14).reverse();
+  const scores = data.map(r => r.san_score || 0);
+
+  const w = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 280;
+  const h = 80;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, w, h);
+
+  const min = Math.max(0, Math.min(...scores) - 10);
+  const max = Math.min(100, Math.max(...scores) + 10);
+  const range = max - min || 1;
+  const xStep = w / Math.max(scores.length - 1, 1);
+  const toY = s => h - 6 - ((s - min) / range) * (h - 12);
+
+  const lastScore = scores[scores.length - 1];
+  const lineColor = lastScore >= 70 ? "#16a34a" : lastScore >= 45 ? "#d97706" : "#dc2626";
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, lineColor + "35");
+  grad.addColorStop(1, lineColor + "05");
+  ctx.beginPath();
+  scores.forEach((s, i) => i === 0 ? ctx.moveTo(0, toY(s)) : ctx.lineTo(i * xStep, toY(s)));
+  ctx.lineTo((scores.length - 1) * xStep, h);
+  ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = lineColor;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = "round";
+  scores.forEach((s, i) => i === 0 ? ctx.moveTo(0, toY(s)) : ctx.lineTo(i * xStep, toY(s)));
+  ctx.stroke();
+
+  // Endpoint dot
+  ctx.beginPath();
+  ctx.arc((scores.length - 1) * xStep, toY(lastScore), 4, 0, Math.PI * 2);
+  ctx.fillStyle = lineColor;
+  ctx.fill();
+
+  // Trend text
+  const delta = lastScore - scores[0];
+  const dir = delta > 3 ? "📈 Mejorando" : delta < -3 ? "📉 Deteriorando" : "➡️ Estable";
+  const color = delta > 3 ? "var(--green)" : delta < -3 ? "var(--red)" : "var(--text-dim)";
+  if (trendEl) trendEl.innerHTML = `<span style="color:${color};font-weight:600;">${dir}</span>
+    <span style="color:var(--text-muted);margin-left:8px;">${delta >= 0 ? "+" : ""}${delta.toFixed(0)} pts · ${data.length} días</span>`;
+}
+
+// Redraw SaN chart on window resize (handles hidden tab becoming visible)
+window.addEventListener("resize", () => {
+  const canvas = document.getElementById("sanChart");
+  if (canvas && canvas._sanRows) renderSaNHistoryChart(canvas._sanRows);
+});
+
+/* ── REBALANCE CALCULATOR ── */
+function renderRebalanceCard() {
+  const card = document.getElementById("rebalanceCard");
+  const list = document.getElementById("rebalanceList");
+  if (!card || !list || portfolio.length < 2) {
+    if (card) card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  const currentSaN = calcSaN(portfolio);
+  let html = `<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">
+    SaN actual: <strong style="color:var(--text);">${currentSaN != null ? currentSaN.toFixed(0) : "—"}</strong>
+    · Mueve los sliders para simular cambios de peso.
+  </div>`;
+  portfolio.forEach((p, i) => {
+    const c = p.risk < 45 ? "var(--green)" : p.risk < 65 ? "var(--amber)" : "var(--red)";
+    html += `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+        <span style="font-family:'JetBrains Mono',monospace;font-weight:700;">${p.ticker}</span>
+        <span style="color:${c};">Risk ${p.risk.toFixed(0)}</span>
+        <span id="rbw_${i}" style="font-family:'JetBrains Mono',monospace;min-width:36px;text-align:right;">${p.weight.toFixed(0)}%</span>
+      </div>
+      <input type="range" min="0" max="60" step="5" value="${Math.min(60, p.weight.toFixed(0))}"
+        style="width:100%;accent-color:${c};"
+        oninput="simulateRebalance(${i}, +this.value)">
+    </div>`;
+  });
+  list.innerHTML = html;
+}
+
+function simulateRebalance(idx, newWeight) {
+  const weightEl = document.getElementById(`rbw_${idx}`);
+  if (weightEl) weightEl.textContent = newWeight + "%";
+
+  const simPortfolio = portfolio.map((p, i) => ({ ...p, weight: i === idx ? newWeight : p.weight }));
+  const simTotal = simPortfolio.reduce((s, p) => s + p.weight, 0);
+  const newSaN = calcSaN(simPortfolio);
+  const currentSaN = calcSaN(portfolio);
+  const delta = (newSaN || 0) - (currentSaN || 0);
+
+  const result = document.getElementById("rebalanceResult");
+  if (!result) return;
+  result.style.display = "block";
+
+  const color = delta > 2 ? "var(--green)" : delta < -2 ? "var(--red)" : "var(--text-dim)";
+  const weightDelta = newWeight - portfolio[idx].weight;
+
+  result.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:8px;">
+      <div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">SaN actual</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;">${currentSaN?.toFixed(0) || "—"}</div>
+      </div>
+      <div style="font-size:22px;color:var(--text-muted);">→</div>
+      <div>
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">SaN simulado</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${color};">${newSaN?.toFixed(0) || "—"}</div>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${color};">
+        ${delta >= 0 ? "+" : ""}${delta.toFixed(0)} pts
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);">
+      ${portfolio[idx].ticker}: ${portfolio[idx].weight.toFixed(0)}% → ${newWeight}%
+      (${weightDelta >= 0 ? "+" : ""}${weightDelta.toFixed(0)}pp)
+      · Total simulado: ${simTotal.toFixed(0)}%
+      ${Math.abs(simTotal - 100) > 5 ? `<span style="color:var(--amber);"> · Ajusta otros pesos para llegar a 100%</span>` : ""}
+    </div>
+    ${delta >= 5 ? `<div style="margin-top:8px;padding:6px 10px;background:var(--green-soft);border-radius:6px;font-size:11px;color:var(--green);font-weight:600;">✓ Mejora significativa de resiliencia</div>` : ""}
+    ${delta <= -5 ? `<div style="margin-top:8px;padding:6px 10px;background:var(--red-soft);border-radius:6px;font-size:11px;color:var(--red);font-weight:600;">⚠ Reduce la resiliencia del portafolio</div>` : ""}
+  `;
+}
+window.simulateRebalance = simulateRebalance;
+
+/* ── DEMO DATA ── */
+const DEMO_PORTFOLIO = [
+  { ticker: "AAPL", weight: 30, sectorKey: "Technology",       risk: 42 },
+  { ticker: "NVDA", weight: 25, sectorKey: "Technology",       risk: 58 },
+  { ticker: "MSFT", weight: 20, sectorKey: "Technology",       risk: 38 },
+  { ticker: "JNJ",  weight: 15, sectorKey: "Healthcare",       risk: 28 },
+  { ticker: "KO",   weight: 10, sectorKey: "Consumer Defensive", risk: 22 }
+];
+
+function loadDemoPortfolio() {
+  portfolio.length = 0;
+  DEMO_PORTFOLIO.forEach(d => {
+    portfolio.push({
+      ticker: d.ticker, sector: d.sectorKey, sectorKey: d.sectorKey,
+      weight: d.weight, risk: d.risk,
+      data: { symbol: d.ticker, name: d.ticker, sector: d.sectorKey, metrics: {} }
+    });
+  });
+  document.getElementById("demoBanner").style.display = "none";
+  renderPortfolio();
+}
+
+/* ── PORTFOLIO ── */
+const portfolio = [];
+function computePortfolioWarningFor(currentTicker) {
+  if (portfolio.length < 2) return null;
+  const cur = portfolio.find(p => p.ticker === currentTicker);
+  if (!cur) return null;
+  const sameSector = portfolio.filter(p => p.sectorKey === cur.sectorKey);
+  if (sameSector.length < 2) return null;
+  const total = portfolio.reduce((s,p) => s+p.weight, 0);
+  const exposure = sameSector.reduce((s,p) => s+p.weight, 0);
+  const pct = (exposure/total)*100;
+  if (pct < 40) return null;
+  return `${sameSector.map(s=>s.ticker).join(" + ")} = ${pct.toFixed(0)}% en sector ${cur.sectorKey}. Concentración elevada.`;
+}
+function renderPortfolio() {
+  const list = document.getElementById("holdingsList");
+  const demoBanner = document.getElementById("demoBanner");
+
+  if (portfolio.length === 0) {
+    list.innerHTML = `<div class="placeholder" style="padding:20px 0;">Sin posiciones.</div>`;
+    document.getElementById("compositeBlock").classList.add("hidden");
+    document.getElementById("exposureList").innerHTML = `<div class="placeholder">—</div>`;
+    if (demoBanner) demoBanner.style.display = "flex";
+    renderConcentrationBanner();
+    renderSaN([]);
+    document.getElementById("pfBottomLine").classList.add("hidden");
+    return;
+  }
+
+  if (demoBanner) demoBanner.style.display = "none";
+
+  list.innerHTML = portfolio.map((p, i) => `
+    <div class="holding-row">
+      <div class="h-tk">${p.ticker}</div>
+      <div class="h-wt">${p.weight.toFixed(0)}%</div>
+      <div class="h-sec">${p.sectorKey.replace("_DEFAULT_","S&P")}</div>
+      <div class="h-score ${riskClass(p.risk)}">${p.risk.toFixed(0)}</div>
+      <div class="h-del" onclick="removeHolding(${i})">✕</div>
+    </div>`).join("");
+  const total = portfolio.reduce((s,p) => s+p.weight, 0);
+  const composite = portfolio.reduce((s,p) => s + p.risk * p.weight, 0) / total;
+  const cbEl = document.getElementById("cbScore");
+  cbEl.textContent = composite.toFixed(0);
+  cbEl.className = "cb-score " + riskClass(composite);
+  document.getElementById("compositeBlock").classList.remove("hidden");
+  const maxSec = getMaxSectorExposure();
+  const verdictEl = document.getElementById("cbVerdict");
+  if (maxSec.pct >= 60) { verdictEl.textContent = `High — Concentración en ${maxSec.sector}`; verdictEl.style.color = "var(--red)"; }
+  else if (composite >= 65) { verdictEl.textContent = `Elevado — riesgo ponderado alto`; verdictEl.style.color = "var(--amber)"; }
+  else { verdictEl.textContent = `Balanceado`; verdictEl.style.color = "var(--green)"; }
+  renderExposure();
+  renderConcentrationBanner();
+  renderSaN(portfolio);
+  renderRebalanceCard();
+  renderPfBottomLine(composite, maxSec);
+}
+function getMaxSectorExposure() {
+  const byS = {};
+  portfolio.forEach(p => { byS[p.sectorKey] = (byS[p.sectorKey] || 0) + p.weight; });
+  const total = Object.values(byS).reduce((a,b) => a+b, 0);
+  const max = Object.entries(byS).sort(([,a],[,b]) => b-a)[0];
+  return { sector: max[0], pct: (max[1]/total)*100, all: byS, total };
+}
+function renderExposure() {
+  const info = getMaxSectorExposure();
+  document.getElementById("exposureList").innerHTML = Object.entries(info.all)
+    .sort(([,a],[,b]) => b-a)
+    .map(([sec, w]) => {
+      const pct = (w/info.total)*100;
+      return `<div class="exposure-row"><div class="e-name">${sec.replace("_DEFAULT_","S&P avg")}</div><div class="e-bar"><div class="e-fill ${pct>50?"hi":""}" style="width:${pct}%;"></div></div><div class="e-val">${pct.toFixed(0)}%</div></div>`;
+    }).join("");
+}
+function renderConcentrationBanner() {
+  const banner = document.getElementById("concentrationBanner");
+  if (portfolio.length === 0) {
+    banner.className = "pf-concentration-alert";
+    banner.innerHTML = `<strong>ℹ Info:</strong> <span>Agrega tickers para ver la alerta de concentración sectorial.</span>`;
+    return;
+  }
+  const info = getMaxSectorExposure();
+  if (info.pct >= 60) {
+    banner.className = "pf-concentration-alert danger";
+    banner.innerHTML = `<strong>🔴 Concentración crítica:</strong> <span>${info.pct.toFixed(0)}% en ${info.sector}. Correlación implícita ~0.85.</span>`;
+  } else if (info.pct >= 40) {
+    banner.className = "pf-concentration-alert";
+    banner.innerHTML = `<strong>🟡 Concentración elevada:</strong> <span>${info.pct.toFixed(0)}% en ${info.sector}.</span>`;
+  } else {
+    banner.className = "pf-concentration-alert ok";
+    banner.innerHTML = `<strong>🟢 Diversificación razonable:</strong> <span>máx ${info.pct.toFixed(0)}% en un sector.</span>`;
+  }
+}
+function renderPfBottomLine(composite, maxSec) {
+  const bl = document.getElementById("pfBottomLine");
+  if (portfolio.length < 2) { bl.classList.add("hidden"); return; }
+  bl.classList.remove("hidden");
+  const verdictEl = document.getElementById("pfVerdictText");
+  const descEl = document.getElementById("pfVerdictDesc");
+  if (maxSec.pct >= 60 || composite >= 70) {
+    bl.style.background = "var(--red-soft)"; bl.style.borderColor = "var(--red)";
+    verdictEl.textContent = "HIGH RISK — REBALANCE RECOMMENDED"; verdictEl.style.color = "var(--red)";
+    descEl.textContent = `${maxSec.pct.toFixed(0)}% concentrado en ${maxSec.sector}. Considera sectores no correlacionados.`;
+  } else if (composite >= 55) {
+    bl.style.background = "var(--amber-soft)"; bl.style.borderColor = "var(--amber)";
+    verdictEl.textContent = "MODERATE RISK — MONITOR"; verdictEl.style.color = "var(--amber)";
+    descEl.textContent = `Composite ${composite.toFixed(0)} — monitorea catalizadores sectoriales.`;
+  } else {
+    bl.style.background = "var(--green-soft)"; bl.style.borderColor = "var(--green)";
+    verdictEl.textContent = "BALANCED PORTFOLIO"; verdictEl.style.color = "var(--green)";
+    descEl.textContent = `Composite ${composite.toFixed(0)}, diversificación sectorial razonable.`;
+  }
+}
+function removeHolding(i) { portfolio.splice(i, 1); renderPortfolio(); savePortfolio(); }
+window.removeHolding = removeHolding;
+
+/* ── MAIN ANALYZE ── */
+async function runAnalyze(tickerOverride) {
+  const ticker = (tickerOverride || document.getElementById("tickerInput").value).trim().toUpperCase();
+  if (!ticker) return alert("Ingresa un ticker");
+  document.getElementById("tickerInput").value = ticker;
+  hideDropdown();
+
+  const regimeSel = document.getElementById("regimeSelect").value;
+  const btn = document.getElementById("analyzeBtn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>Cargando...`;
+
+  const state = document.getElementById("reportState");
+  const content = document.getElementById("reportContent");
+  content.classList.add("hidden");
+  state.classList.remove("hidden");
+  state.className = "placeholder";
+  state.innerHTML = `<span class="spinner"></span>Obteniendo datos para ${escapeHTML(ticker)}...`;
+
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelector('[data-tab="report"]').classList.add("active");
+  document.getElementById("tab-report").classList.remove("hidden");
+  document.getElementById("tab-portfolio").classList.add("hidden");
+
+  try {
+    // Fetch en paralelo: datos principales, mercado (VIX), candles (vol/mom)
+    const [data, marketState, candles] = await Promise.all([
+      fetchData(ticker),
+      fetchMarketState().catch(() => ({ vix: null, regime: "neutral" })),
+      fetchCandles(ticker).catch(() => ({ volatility: null, momentum: null, avgVolume: null }))
+    ]);
+
+    // Régimen: auto si está en "auto", si no manual
+    const regime = (regimeSel === "auto") ? marketState.regime : regimeSel;
+    window.__marketState = marketState;
+    window.__candles = candles;
+
+    const sectorKey = normalizeSector(data.sector, data.symbol);
+    const risk = calcRiskEngine(data.metrics, sectorKey, regime, {
+      volatility: candles.volatility,
+      momentum: candles.momentum
+    });
+
+    // Store for stress test
+    baseData = data;
+    baseRiskResult = risk;
+    window.__lastRegime = regime;
+
+    // Reset stress test state
+    currentStressScenario = null;
+    document.getElementById("stressResult").style.display = "none";
+    document.querySelectorAll(".stress-btn").forEach(b => b.classList.remove("active"));
+
+    renderReport(data, risk, regime, marketState, candles);
+
+    // Fetch news, insiders, recommendations, macro in parallel
+    let newsData = null;
+    let insidersData = null;
+    let recsData = null;
+    let macroData = null;
+    await Promise.all([
+      fetchNews(ticker).then(n => { newsData = n; }).catch(() => {}),
+      fetchInsiders(ticker).then(n => { insidersData = n; }).catch(() => {}),
+      fetchRecommendations(ticker).then(n => { recsData = n; }).catch(() => {}),
+      fetchMacroContext().then(n => { macroData = n; renderMacroBadge(n); }).catch(() => {})
+    ]);
+
+    if (newsData) renderNews(newsData);
+
+    // Fetch history for trend, then render divergence card
+    const historyData = await fetchHistory(ticker).catch(() => []);
+    renderRiskTrend(historyData, risk.score);
+    renderDivergenceCard(risk, insidersData, recsData, historyData, macroData);
+
+    document.getElementById("aiStatus").textContent = "Generando...";
+    document.getElementById("aiText").innerHTML = `<p style="color:var(--text-muted);">Claude analizando...</p>`;
+    try {
+      const ai = await callClaude(data, risk, regime, newsData, marketState, candles, insidersData, recsData, macroData);
+      if (ai) renderAI(ai);
+      else document.getElementById("aiText").innerHTML = `<p style="color:var(--text-muted);">Claude API Key no configurada.</p>`;
+    } catch (e) {
+      document.getElementById("aiStatus").textContent = "Error AI";
+      document.getElementById("aiText").innerHTML = `<p style="color:var(--red);">Error Claude: ${escapeHTML(e.message)}</p>`;
+    }
+
+    saveSnapshot(data, risk, regime, newsData, marketState, candles).catch(e => console.warn("[Sentinel] Snapshot save failed:", e.message));
+    renderHistory(historyData);
+    fetchBacktestStats().then(renderBacktestStats).catch(() => {});
+
+  } catch (err) {
+    state.className = "";
+    state.innerHTML = `<div class="error-box"><strong>Error:</strong> ${escapeHTML(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `Analizar <span style="font-weight:400;">↗</span>`;
+  }
+}
+
+/* ── PORTFOLIO ADD ── */
+async function pfAddHandler() {
+  const ticker = document.getElementById("pfTicker").value.trim().toUpperCase();
+  const weight = parseFloat(document.getElementById("pfWeight").value);
+  if (!ticker || !weight) return alert("Ingresa ticker y peso");
+  const regimeSel = document.getElementById("regimeSelect").value;
+  const btn = document.getElementById("pfAdd");
+  btn.disabled = true; btn.textContent = "...";
+  try {
+    const [data, marketState, candles] = await Promise.all([
+      fetchData(ticker),
+      fetchMarketState().catch(() => ({ regime: "neutral" })),
+      fetchCandles(ticker).catch(() => ({ volatility: null }))
+    ]);
+    const regime = regimeSel === "auto" ? marketState.regime : regimeSel;
+    const sectorKey = normalizeSector(data.sector, data.symbol);
+    const risk = calcRiskEngine(data.metrics, sectorKey, regime, { volatility: candles.volatility });
+    portfolio.push({ ticker: data.symbol, sector: data.sector, sectorKey, weight, risk: risk.score, data });
+    document.getElementById("pfTicker").value = "";
+    document.getElementById("pfWeight").value = "";
+    renderPortfolio();
+    savePortfolio();
+  } catch (e) {
+    alert("Error: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "+ Agregar";
+  }
+}
+
+async function savePortfolio() {
+  if (isLocalMode()) return;
+  try {
+    await proxyPost("portfolio-save", {
+      name: "default",
+      holdings: portfolio.map(p => ({
+        ticker: p.ticker,
+        weight: p.weight,
+        sectorKey: p.sectorKey,
+        sector: p.sector || p.sectorKey  // save the real sector name too
+      }))
+    });
+  } catch (e) { console.warn("[Sentinel] Portfolio save failed:", e.message); }
+}
+
+async function loadPortfolio() {
+  if (isLocalMode()) return;
+  try {
+    const rows = await proxyGet("portfolio-load");
+    if (!rows || rows.length === 0) return;
+    const regimeSel = document.getElementById("regimeSelect").value;
+    const marketState = await fetchMarketState().catch(() => ({ regime: "neutral" }));
+    const regime = regimeSel === "auto" ? marketState.regime : regimeSel;
+    for (const row of rows) {
+      try {
+        const [data, candles] = await Promise.all([
+          fetchData(row.ticker),
+          fetchCandles(row.ticker).catch(() => ({ volatility: null }))
+        ]);
+        const sectorKey = normalizeSector(data.sector, data.symbol);
+        const risk = calcRiskEngine(data.metrics, sectorKey, regime, { volatility: candles.volatility });
+        portfolio.push({ ticker: data.symbol, sector: data.sector, sectorKey, weight: row.weight, risk: risk.score, data });
+      } catch (e) {
+        // Use saved sector from Supabase as fallback — not _DEFAULT_
+        const savedSectorKey = row.sector_key && row.sector_key !== "_DEFAULT_"
+          ? row.sector_key
+          : (row.sector ? normalizeSector(row.sector, row.ticker) : "_DEFAULT_");
+        portfolio.push({
+          ticker: row.ticker,
+          sector: row.sector || savedSectorKey,
+          sectorKey: savedSectorKey,
+          weight: row.weight,
+          risk: 50,
+          data: null
+        });
+      }
+    }
+    renderPortfolio();
+  } catch (e) { console.warn("[Sentinel] Portfolio load failed:", e.message); }
+}
+
+/* ── ENV SELECT ── */
+document.getElementById("envSelect").addEventListener("change", (e) => {
+  document.getElementById("localKeysPanel").classList.toggle("hidden", e.target.value !== "local");
+});
+
+/* ── WIRE UP ── */
+document.getElementById("analyzeBtn").addEventListener("click", () => runAnalyze());
+document.querySelectorAll(".suggest-row a").forEach(a => {
+  a.addEventListener("click", () => runAnalyze(a.dataset.tk));
+});
+document.getElementById("settingsToggle").addEventListener("click", () => {
+  document.getElementById("settingsPanel").classList.toggle("closed");
+});
+document.getElementById("pfAdd").addEventListener("click", pfAddHandler);
+document.getElementById("pfClear").addEventListener("click", () => { portfolio.length = 0; renderPortfolio(); savePortfolio(); });
+document.querySelectorAll(".stress-btn").forEach(btn => {
+  btn.addEventListener("click", () => runStressTest(btn.dataset.scenario));
+});
+document.getElementById("loadDemoBtn")?.addEventListener("click", loadDemoPortfolio);
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    const id = t.dataset.tab;
+    document.getElementById("tab-report").classList.toggle("hidden", id !== "report");
+    document.getElementById("tab-portfolio").classList.toggle("hidden", id !== "portfolio");
+
+    if (id === "portfolio" && portfolio.length > 0) {
+      // Load SaN history and render chart
+      proxyGet("portfolio-san-history").then(rows => {
+        renderSaNHistoryChart(rows || []);
+      }).catch(() => {});
+      // Save today's SaN snapshot
+      const san = calcSaN(portfolio);
+      const total = portfolio.reduce((s, p) => s + p.weight, 0);
+      const composite = total > 0 ? portfolio.reduce((s, p) => s + p.risk * p.weight, 0) / total : 0;
+      const byS = {};
+      portfolio.forEach(p => { byS[p.sectorKey] = (byS[p.sectorKey] || 0) + p.weight; });
+      const techExp = total > 0 ? ((byS["Technology"] || 0) / total * 100) : 0;
+      if (san != null) {
+        proxyPost("portfolio-san-save", {
+          san, composite, techExposure: techExp, holdingCount: portfolio.length
+        }).catch(() => {});
+      }
+    }
+  });
+});
+
+/* Guardar régimen */
+const savedRegime = localStorage.getItem("srt_v41_regime");
+if (savedRegime) document.getElementById("regimeSelect").value = savedRegime;
+document.getElementById("regimeSelect").addEventListener("change", (e) => {
+  localStorage.setItem("srt_v41_regime", e.target.value);
+});
+
+renderPortfolio();
+// Startup: load baselines + portfolio + backtest stats
+loadBaselinesFromSupabase().then(() => {
+  // Show baseline source in data pill after load
+  const dataPill = document.getElementById("dataVal");
+  if (dataPill && baselinesSource === "supabase") {
+    const ageText = baselinesUpdatedAt
+      ? ` · baselines ${new Date(baselinesUpdatedAt).toLocaleDateString("es-CL")}`
+      : "";
+    dataPill.title = `Baselines cargados desde Supabase${ageText}`;
+  }
+}).catch(() => {});
+loadPortfolio().catch(() => {});
+fetchBacktestStats().then(renderBacktestStats).catch(() => {});
+fetchMacroContext().then(renderMacroBadge).catch(() => {});
+</script>
+</body>
+</html>
